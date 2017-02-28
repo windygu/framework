@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -88,7 +88,7 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
 
             return new DecisionSet(rules)
             {
-                OutputClasses = tree.OutputClasses
+                OutputClasses = tree.NumberOfOutputs
             };
         }
 
@@ -178,7 +178,7 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
         /// 
         public override string ToString()
         {
-            return toString(null, CultureInfo.CurrentUICulture);
+            return toString(null, null, CultureInfo.CurrentUICulture);
         }
 
         /// <summary>
@@ -191,7 +191,7 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
         /// 
         public string ToString(Codification codebook, CultureInfo cultureInfo)
         {
-            return toString(codebook, cultureInfo);
+            return toString(codebook, null, cultureInfo);
         }
 
         /// <summary>
@@ -207,7 +207,20 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
             return ToString(codebook, CultureInfo.CurrentUICulture);
         }
 
-        private string toString(Codification codebook, CultureInfo cultureInfo)
+        /// <summary>
+        ///   Returns a <see cref="System.String"/> that represents this instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A <see cref="System.String"/> that represents this instance.
+        /// </returns>
+        /// 
+        public string ToString(Codification codebook, string outputColumn, CultureInfo cultureInfo)
+        {
+            return toString(codebook, outputColumn, CultureInfo.CurrentUICulture);
+        }
+
+        private string toString(Codification codebook, string outputColumn, CultureInfo cultureInfo)
         {
             var rulesArray = new DecisionRule[this.rules.Count];
 
@@ -218,7 +231,7 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
             if (codebook != null)
             {
                 foreach (DecisionRule rule in rulesArray)
-                    sb.AppendLine(rule.ToString(codebook, cultureInfo));
+                    sb.AppendLine(rule.ToString(codebook, outputColumn, cultureInfo));
             }
             else
             {
@@ -257,5 +270,7 @@ namespace Accord.MachineLearning.DecisionTrees.Rules
             return rules.GetEnumerator();
         }
 
+
+        
     }
 }

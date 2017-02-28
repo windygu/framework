@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -28,8 +28,8 @@ namespace Accord.Imaging
     using System.Drawing.Imaging;
     using Accord.Math;
     using AForge;
-    using AForge.Imaging;
-    using AForge.Imaging.Filters;
+    using Accord.Imaging;
+    using Accord.Imaging.Filters;
 
     /// <summary>
     ///   Corners measures to be used in <see cref="HarrisCornersDetector"/>.
@@ -257,7 +257,7 @@ namespace Accord.Imaging
 
         private void createGaussian()
         {
-            double[] aforgeKernel = new AForge.Math.Gaussian(sigma).Kernel(size);
+            double[] aforgeKernel = Normal.Kernel(sigma * sigma, size);
             this.kernel = Array.ConvertAll<double, float>(aforgeKernel, Convert.ToSingle);
         }
         #endregion
@@ -352,7 +352,7 @@ namespace Accord.Imaging
                         }
 
                         // Skip last column
-                        dx++; dy++; dxy++; 
+                        dx++; dy++; dxy++;
                         src += offset + 1;
                     }
 
@@ -566,5 +566,19 @@ namespace Accord.Imaging
             return corners;
         }
 
+        /// <summary>
+        ///   Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A new object that is a copy of this instance.
+        /// </returns>
+        /// 
+        public object Clone()
+        {
+            var clone = new HarrisCornersDetector();
+            clone.initialize(measure, k, threshold, sigma, r, size);
+            return clone;
+        }
     }
 }

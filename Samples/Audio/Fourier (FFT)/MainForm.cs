@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -30,11 +30,12 @@
 //  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
+using Accord;
 using Accord.Audio;
 using Accord.Audio.Windows;
 using Accord.DirectSound;
 using AForge;
-using AForge.Math;
+using Accord.Math;
 using System;
 using System.Drawing;
 using System.Numerics;
@@ -60,7 +61,7 @@ namespace SampleApp
         void btnStart_Click(object sender, EventArgs e)
         {
             // Get the device currently selected in the combobox
-            AudioDeviceInfo info = comboBox1.SelectedItem as AudioDeviceInfo;
+            var info = comboBox1.SelectedItem as AudioDeviceInfo;
 
             if (info == null)
             {
@@ -80,7 +81,6 @@ namespace SampleApp
             source.NewFrame += source_NewFrame;
             source.AudioSourceError += source_AudioSourceError;
             
-
             // Start it!
             source.Start();
         }
@@ -155,7 +155,7 @@ namespace SampleApp
             chart1.AddWaveform("fft", Color.Black, 1, false);
 
             // Enumerate audio devices and add all devices to combo
-            AudioDeviceCollection audioDevices = new AudioDeviceCollection(AudioDeviceCategory.Capture);
+            var audioDevices = new AudioDeviceCollection(AudioDeviceCategory.Capture);
 
             foreach (AudioDeviceInfo device in audioDevices)
                 comboBox1.Items.Add(device);
@@ -230,6 +230,5 @@ namespace SampleApp
             Close();
         }
 
-        
     }
 }

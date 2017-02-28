@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -22,13 +22,18 @@
 
 namespace Accord
 {
+    using Accord.IO;
     using System;
+    using System.Collections;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Data;
     using System.Globalization;
+    using System.Linq;
     using System.IO;
     using System.Reflection;
     using System.Runtime.InteropServices;
+    using System.Runtime.Serialization;
     using System.Runtime.Serialization.Formatters.Binary;
 
     /// <summary>
@@ -37,6 +42,25 @@ namespace Accord
     /// 
     public static class ExtensionMethods
     {
+
+        /// <summary>
+        ///   Copies a collection by calling the ICloneable.Clone method for each element inside it.
+        /// </summary>
+        /// 
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list">The collection to be cloned.</param>
+        /// 
+        /// <returns>A copy of the collection where each element has also been copied.</returns>
+        /// 
+        [Obsolete("Please use Matrix.Copy() instead.")]
+        public static T DeepClone<T>(this T list)
+            where T : IList<ICloneable>, ICloneable
+        {
+            T clone = (T)list.Clone();
+            for (int i = 0; i < clone.Count; i++)
+                clone[i] = (ICloneable)list[i].Clone();
+            return clone;
+        }
 
         /// <summary>
         ///   Creates and adds multiple <see cref="System.Data.DataColumn"/>
@@ -90,7 +114,8 @@ namespace Accord
         ///   Reads a <c>struct</c> from a stream.
         /// </summary>
         /// 
-        public static bool Read<T>(this BinaryReader stream, out T structure) where T : struct
+        public static bool Read<T>(this BinaryReader stream, out T structure)
+            where T : struct
         {
             var type = typeof(T);
 
@@ -107,6 +132,113 @@ namespace Accord
             handle.Free();
 
             return true;
+        }
+
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static bool Write<T>(this BinaryWriter stream, T[] array)
+            where T : struct
+        {
+            var type = typeof(T);
+            int size = Marshal.SizeOf(type);
+            byte[] buffer = new byte[size * array.Length];
+
+            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
+            stream.Write(buffer, 0, buffer.Length);
+
+            return true;
+        }
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static bool Write<T>(this BinaryWriter stream, T[][] array)
+            where T : struct
+        {
+            var type = typeof(T);
+            int size = Marshal.SizeOf(type);
+            byte[] buffer = new byte[size * array[0].Length];
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                Buffer.BlockCopy(array[i], 0, buffer, 0, buffer.Length);
+                stream.Write(buffer, 0, buffer.Length);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static bool Write<T>(this BinaryWriter stream, T[,] array)
+            where T : struct
+        {
+            var type = typeof(T);
+            int size = Marshal.SizeOf(type);
+            byte[] buffer = new byte[size * array.Length];
+
+            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
+            stream.Write(buffer, 0, buffer.Length);
+
+            return true;
+        }
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static T[][] ReadJagged<T>(this BinaryReader stream, int rows, int columns)
+            where T : struct
+        {
+            var type = typeof(T);
+            int size = Marshal.SizeOf(type);
+            var buffer = new byte[size * columns];
+            T[][] matrix = new T[rows][];
+            for (int i = 0; i < matrix.Length; i++)
+                matrix[i] = new T[columns];
+
+            for (int i = 0; i < matrix.Length; i++)
+            {
+                stream.Read(buffer, 0, buffer.Length);
+                Buffer.BlockCopy(buffer, 0, matrix[i], 0, buffer.Length);
+            }
+
+            return matrix;
+        }
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static T[,] ReadMatrix<T>(this BinaryReader stream, int rows, int columns)
+            where T : struct
+        {
+            return (T[,])ReadMatrix(stream, typeof(T), rows, columns);
+        }
+
+        /// <summary>
+        ///   Reads a <c>struct</c> from a stream.
+        /// </summary>
+        /// 
+        public static Array ReadMatrix(this BinaryReader stream, Type type, params int[] lengths)
+        {
+            int size = Marshal.SizeOf(type);
+            int total = 1;
+            for (int i = 0; i < lengths.Length; i++)
+                total *= lengths[i];
+            var buffer = new byte[size * total];
+            var matrix = Array.CreateInstance(type, lengths);
+
+            stream.Read(buffer, 0, buffer.Length);
+            Buffer.BlockCopy(buffer, 0, matrix, 0, buffer.Length);
+
+            return matrix;
         }
 
         /// <summary>
@@ -144,7 +276,6 @@ namespace Accord
         }
 
 
-        private static readonly Object lockObj = new Object();
 
         /// <summary>
         ///   Deserializes the specified stream into an object graph, but locates
@@ -156,30 +287,179 @@ namespace Accord
         /// 
         /// <returns>The top (root) of the object graph.</returns>
         /// 
-        public static object DeserializeAnyVersion(this BinaryFormatter formatter, Stream stream)
+        [Obsolete("Please use Accord.IO.Serializer.Load<T>() instead.")]
+        public static T DeserializeAnyVersion<T>(this BinaryFormatter formatter, Stream stream)
         {
-            lock (lockObj)
+            return Serializer.Load<T>(stream);
+        }
+
+        /// <summary>
+        ///   Converts an object into another type, irrespective of whether
+        ///   the conversion can be done at compile time or not. This can be
+        ///   used to convert generic types to numeric types during runtime.
+        /// </summary>
+        /// 
+        /// <typeparam name="T">The destination type.</typeparam>
+        /// 
+        /// <param name="value">The value to be converted.</param>
+        /// 
+        /// <returns>The result of the conversion.</returns>
+        /// 
+        public static T To<T>(this object value)
+        {
+            if (value is IConvertible)
+                return (T)System.Convert.ChangeType(value, typeof(T));
+
+            Type type = value.GetType();
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static);
+            foreach (var m in methods)
             {
-                try
+                if ((m.Name == "op_Implicit" || m.Name == "op_Explicit") && m.ReturnType == typeof(T))
+                    return (T)m.Invoke(null, new[] { value });
+            }
+
+            return (T)System.Convert.ChangeType(value, typeof(T));
+        }
+
+        /// <summary>
+        ///   Determines whether the given type has a public default (parameterless) constructor.
+        /// </summary>
+        /// 
+        /// <param name="t">The type to check.</param>
+        /// 
+        /// <returns>True if the type has a public parameterless constructor; false otherwise.</returns>
+        /// 
+        public static bool HasDefaultConstructor(this Type t)
+        {
+            return t.IsValueType || t.GetConstructor(Type.EmptyTypes) != null;
+        }
+
+
+        /// <summary>
+        ///   Replaces the format item in a specified string with the string
+        ///   representation of a corresponding object in a specified array.
+        /// </summary>
+        /// 
+        /// <param name="str">A composite format string.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
+        /// 
+        /// <returns>
+        ///   A copy of str in which the format items have been replaced by
+        ///   the string representation of the corresponding objects in args.
+        /// </returns>
+        /// 
+        public static string Format(this string str, params object[] args)
+        {
+            return String.Format(str, args);
+        }
+
+        /// <summary>
+        ///   Checks whether two dictionaries have the same contents.
+        /// </summary>
+        /// 
+        public static bool IsEqual<TKey, TValue>(this IDictionary<TKey, TValue> a, IDictionary<TKey, TValue> b)
+        {
+            if (a == b)
+                return true;
+
+            if (a.Count != b.Count)
+                return false;
+
+            var aKeys = new HashSet<TKey>(a.Keys);
+            var bKeys = new HashSet<TKey>(b.Keys);
+            if (!aKeys.SetEquals(bKeys))
+                return false;
+
+            if (HasMethod<TValue>("SetEquals"))
+            {
+                var setEquals = typeof(TValue).GetMethod("SetEquals");
+                foreach (var k in aKeys)
                 {
-                    AppDomain.CurrentDomain.AssemblyResolve += resolve;
-                    return formatter.Deserialize(stream);
+                    if (!(bool)setEquals.Invoke(a[k], new object[] { b[k] }))
+                        return false;
                 }
-                finally
-                {
-                    AppDomain.CurrentDomain.AssemblyResolve -= resolve;
-                }
+            }
+            else
+            {
+                foreach (var k in aKeys)
+                    if (!a[k].Equals(b[k]))
+                        return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        ///   Checks whether an object implements a method with the given name.
+        /// </summary>
+        /// 
+        public static bool HasMethod(this object obj, string methodName)
+        {
+            try
+            {
+                var type = obj.GetType();
+                return type.GetMethod(methodName) != null;
+            }
+            catch (AmbiguousMatchException)
+            {
+                return true;
             }
         }
 
-        private static Assembly resolve(object sender, ResolveEventArgs args)
+        /// <summary>
+        ///   Checks whether a type implements a method with the given name.
+        /// </summary>
+        /// 
+        public static bool HasMethod<T>(string methodName)
         {
-            var display = new AssemblyName(args.Name);
+            try
+            {
+                var type = typeof(T);
+                return type.GetMethod(methodName) != null;
+            }
+            catch (AmbiguousMatchException)
+            {
+                return true;
+            }
+        }
 
-            if (display.Name == args.Name)
-                return null;
+        /// <summary>
+        ///   Determines whether <c>a > b</c>.
+        /// </summary>
+        /// 
+        public static bool IsGreaterThan<T>(this T a, object b)
+            where T : IComparable
+        {
+            return a.CompareTo(b) > 0;
+        }
 
-            return ((AppDomain)sender).Load(display.Name);
+        /// <summary>
+        ///   Determines whether <c>a >= b</c>.
+        /// </summary>
+        /// 
+        public static bool IsGreaterThanOrEqual<T>(this T a, object b)
+            where T : IComparable
+        {
+            return a.CompareTo(b) >= 0;
+        }
+
+        /// <summary>
+        ///   Determines whether <c>a &lt; b</c>.
+        /// </summary>
+        /// 
+        public static bool IsLessThan<T>(this T a, object b)
+            where T : IComparable
+        {
+            return a.CompareTo(b) < 0;
+        }
+
+        /// <summary>
+        ///   Determines whether <c>a &lt;= b</c>.
+        /// </summary>
+        /// 
+        public static bool IsLessThanOrEqual<T>(this T a, object b)
+            where T : IComparable
+        {
+            return a.CompareTo(b) <= 0;
         }
     }
 }

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -52,7 +52,7 @@ namespace Accord.Imaging
     using System.Drawing.Imaging;
     using Accord.Math;
     using Accord.Math.Decompositions;
-    using AForge.Imaging;
+    using Accord.Imaging;
     using Accord.Math.Geometry;
     using AForge.Math;
     using System.IO;
@@ -337,7 +337,7 @@ namespace Accord.Imaging
             float[,] F = createFundamentalMatrix(A);
 
             // Denormalize
-            F = T2.Transpose().Multiply(F.Multiply(T1));
+            F = T2.TransposeAndDot(F.Dot(T1));
 
             return F;
         }
@@ -381,7 +381,7 @@ namespace Accord.Imaging
             float[,] F = createFundamentalMatrix(A);
 
             // Denormalize
-            F = T2.Transpose().Multiply(F.Multiply(T1));
+            F = T2.TransposeAndDot(F.Dot(T1));
 
             return F;
         }
@@ -399,7 +399,7 @@ namespace Accord.Imaging
 
             int s = svd.RightSingularVectors.GetLength(1) - 1;
 
-            float[,] F = 
+            float[,] F =
             {
                 { V[0, s], V[1, s], V[2, s] },
                 { V[3, s], V[4, s], V[5, s] },
@@ -417,7 +417,7 @@ namespace Accord.Imaging
             D[2] = 0;
 
             // Reconstruct with rank 2 approximation
-            var newF = U.MultiplyByDiagonal(D).Multiply(V.Transpose());
+            var newF = U.DotWithDiagonal(D).Dot(V.Transpose());
 
             F = newF;
             return F;
@@ -462,7 +462,8 @@ namespace Accord.Imaging
                 xmean += points[i].X;
                 ymean += points[i].Y;
             }
-            xmean /= n; ymean /= n;
+            xmean /= n;
+            ymean /= n;
 
 
             float scale = 0;
@@ -504,7 +505,8 @@ namespace Accord.Imaging
                 xmean += points[i].X;
                 ymean += points[i].Y;
             }
-            xmean /= n; ymean /= n;
+            xmean /= n;
+            ymean /= n;
 
 
             float scale = 0;
@@ -558,6 +560,19 @@ namespace Accord.Imaging
 
 
         #region Image tools
+
+        /// <summary>
+        /// Copies the horizontal and vertical resolution specifications
+        /// from a source Bitmap image and stores in a destination image.
+        /// </summary>
+        /// 
+        public static void CopyResolutionFrom(this Bitmap dst, Bitmap src)
+        {
+#if !MONO
+            if ((src.HorizontalResolution > 0) && (src.VerticalResolution > 0))
+                dst.SetResolution(src.HorizontalResolution, src.VerticalResolution);
+#endif
+        }
 
         #region Sum
 
@@ -959,7 +974,8 @@ namespace Accord.Imaging
                         byte* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p > max) max = *p;
+                            if (*p > max)
+                                max = *p;
                     }
                 }
             }
@@ -974,7 +990,8 @@ namespace Accord.Imaging
                         ushort* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p > max) max = *p;
+                            if (*p > max)
+                                max = *p;
                     }
                 }
             }
@@ -1014,7 +1031,8 @@ namespace Accord.Imaging
                         byte* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p > max) max = *p;
+                            if (*p > max)
+                                max = *p;
                     }
                 }
                 else
@@ -1026,7 +1044,8 @@ namespace Accord.Imaging
                         ushort* p = src + 2 * stride * (ry + y) + 2 * rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p > max) max = *p;
+                            if (*p > max)
+                                max = *p;
                     }
                 }
             }
@@ -1058,7 +1077,8 @@ namespace Accord.Imaging
 
                     for (int y = 0; y < height; y++)
                         for (int x = 0; x < width; x++, src++)
-                            if (*src > max) max = *src;
+                            if (*src > max)
+                                max = *src;
                 }
                 else
                 {
@@ -1066,7 +1086,8 @@ namespace Accord.Imaging
 
                     for (int y = 0; y < height; y++)
                         for (int x = 0; x < width; x++, src++)
-                            if (*src > max) max = *src;
+                            if (*src > max)
+                                max = *src;
                 }
             }
 
@@ -1096,7 +1117,8 @@ namespace Accord.Imaging
 
                 for (int y = 0; y < height; y++)
                     for (int x = 0; x < width; x++, src += pixelSize)
-                        if (*src > max) max = *src;
+                        if (*src > max)
+                            max = *src;
             }
 
 
@@ -1126,7 +1148,8 @@ namespace Accord.Imaging
 
                 for (int y = 0; y < height; y++)
                     for (int x = 0; x < width; x++, src += pixelSize)
-                        if (*src < min) min = *src;
+                        if (*src < min)
+                            min = *src;
             }
 
             return min;
@@ -1214,7 +1237,8 @@ namespace Accord.Imaging
                         byte* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p < min) min = *p;
+                            if (*p < min)
+                                min = *p;
                     }
                 }
             }
@@ -1231,7 +1255,8 @@ namespace Accord.Imaging
                         ushort* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p < min) min = *p;
+                            if (*p < min)
+                                min = *p;
                     }
                 }
             }
@@ -1282,7 +1307,8 @@ namespace Accord.Imaging
                         byte* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p < min) min = *p;
+                            if (*p < min)
+                                min = *p;
                     }
                 }
             }
@@ -1299,7 +1325,8 @@ namespace Accord.Imaging
                         ushort* p = src + stride * (ry + y) + rx;
 
                         for (int x = 0; x < rwidth; x++, p++)
-                            if (*p < min) min = *p;
+                            if (*p < min)
+                                min = *p;
                     }
                 }
             }
@@ -1610,7 +1637,7 @@ namespace Accord.Imaging
             int width = pixels.GetLength(1);
             int height = pixels.GetLength(0);
 
-            Bitmap bitmap = AForge.Imaging.Image.CreateGrayscaleImage(width, height);
+            Bitmap bitmap = Accord.Imaging.Image.CreateGrayscaleImage(width, height);
 
             BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly, bitmap.PixelFormat);
@@ -1652,8 +1679,8 @@ namespace Accord.Imaging
             int width = pixels.GetLength(1);
             int height = pixels.GetLength(0);
 
-            Bitmap bitmap = AForge.Imaging.Image.CreateGrayscaleImage(width, height);
-            bitmap = AForge.Imaging.Image.Convert8bppTo16bpp(bitmap);
+            Bitmap bitmap = Accord.Imaging.Image.CreateGrayscaleImage(width, height);
+            bitmap = Accord.Imaging.Image.Convert8bppTo16bpp(bitmap);
 
             BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly, bitmap.PixelFormat);
@@ -1697,7 +1724,7 @@ namespace Accord.Imaging
         [Obsolete("Please use the converters in the Imaging.Converters namespace.")]
         public static Bitmap ToBitmap(this double[] pixels, int width, int height, double min, double max)
         {
-            Bitmap bitmap = AForge.Imaging.Image.CreateGrayscaleImage(width, height);
+            Bitmap bitmap = Accord.Imaging.Image.CreateGrayscaleImage(width, height);
 
             BitmapData data = bitmap.LockBits(new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly, bitmap.PixelFormat);
@@ -1829,24 +1856,24 @@ namespace Accord.Imaging
         public static float[] Multiply(this PointF point, float[,] transformationMatrix)
         {
             float[] x = new float[] { point.X, point.Y, 1 };
-            return Matrix.Multiply(x, transformationMatrix);
+            return Matrix.Dot(x, transformationMatrix);
         }
 
         /// <summary>
         ///   Multiplies a transformation matrix and a point.
         /// </summary>
         /// 
-        public static float[] Multiply(this  float[,] transformationMatrix, PointF point)
+        public static float[] Multiply(this float[,] transformationMatrix, PointF point)
         {
             float[] x = new float[] { point.X, point.Y, 1 };
-            return Matrix.Multiply(transformationMatrix, x);
+            return Matrix.Dot(transformationMatrix, x);
         }
 
         /// <summary>
         ///   Computes the inner product of two points.
         /// </summary>
         /// 
-        public static float InnerProduct(this  PointF a, PointF b)
+        public static float InnerProduct(this PointF a, PointF b)
         {
             return a.X * b.X + a.Y * b.Y + 1;
         }
@@ -1862,7 +1889,7 @@ namespace Accord.Imaging
             for (int j = 0; j < points.Length; j++)
             {
                 float[] a = new float[] { points[j].X, points[j].Y, 1 };
-                float[] b = fundamentalMatrix.Multiply(a);
+                float[] b = fundamentalMatrix.Dot(a);
                 r[j] = new PointF(b[0] / b[2], b[1] / b[2]);
             }
 
@@ -1916,6 +1943,14 @@ namespace Accord.Imaging
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        /// <summary>
+        /// Locks a Bitmap into system memory.
+        /// </summary>
+        public static BitmapData LockBits(this Bitmap value, ImageLockMode mode)
+        {
+            return value.LockBits(new Rectangle(0, 0, value.Width, value.Height), mode, value.PixelFormat);
         }
     }
 }

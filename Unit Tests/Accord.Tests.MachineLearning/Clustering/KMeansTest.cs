@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -30,6 +30,7 @@ namespace Accord.Tests.MachineLearning
     using System.IO;
     using System.Reflection;
     using System.Runtime.Serialization.Formatters.Binary;
+    using Accord.IO;
 
     [TestFixture]
     public class KMeansTest
@@ -39,7 +40,7 @@ namespace Accord.Tests.MachineLearning
         [Test]
         public void KMeansConstructorTest()
         {
-            Accord.Math.Tools.SetupGenerator(0);
+            Accord.Math.Random.Generator.Seed = 0;
 
             // Declare some observations
             double[][] observations = 
@@ -87,6 +88,70 @@ namespace Accord.Tests.MachineLearning
 
             // the data must not have changed!
             Assert.IsTrue(orig.IsEqual(observations));
+        }
+
+        [Test]
+        public void learn_test()
+        {
+            #region doc_learn
+            Accord.Math.Random.Generator.Seed = 0;
+
+            // Declare some observations
+            double[][] observations =
+            {
+                new double[] { -5, -2, -1 },
+                new double[] { -5, -5, -6 },
+                new double[] {  2,  1,  1 },
+                new double[] {  1,  1,  2 },
+                new double[] {  1,  2,  2 },
+                new double[] {  3,  1,  2 },
+                new double[] { 11,  5,  4 },
+                new double[] { 15,  5,  6 },
+                new double[] { 10,  5,  6 },
+            };
+
+            double[][] orig = observations.MemberwiseClone();
+
+            // Create a new K-Means algorithm with 3 clusters 
+            KMeans kmeans = new KMeans(3);
+
+            // Compute the algorithm, retrieving an integer array
+            //  containing the labels for each of the observations
+            KMeansClusterCollection clusters = kmeans.Learn(observations);
+
+            // As a result, the first two observations should belong to the
+            //  same cluster (thus having the same label). The same should
+            //  happen to the next four observations and to the last three.
+            int[] labels = clusters.Decide(observations);
+
+            #endregion
+
+            Assert.AreEqual(labels[0], labels[1]);
+
+            Assert.AreEqual(labels[2], labels[3]);
+            Assert.AreEqual(labels[2], labels[4]);
+            Assert.AreEqual(labels[2], labels[5]);
+
+            Assert.AreEqual(labels[6], labels[7]);
+            Assert.AreEqual(labels[6], labels[8]);
+
+            Assert.AreNotEqual(labels[0], labels[2]);
+            Assert.AreNotEqual(labels[2], labels[6]);
+            Assert.AreNotEqual(labels[0], labels[6]);
+
+            int[] labels2 = kmeans.Clusters.Nearest(observations);
+            Assert.IsTrue(labels.IsEqual(labels2));
+
+            // the data must not have changed!
+            Assert.IsTrue(orig.IsEqual(observations));
+
+            var c = new KMeansClusterCollection.KMeansCluster[clusters.Count];
+            int i = 0;
+            foreach (var cluster in clusters)
+                c[i++] = cluster;
+
+            for (i = 0; i < c.Length; i++)
+                Assert.AreSame(c[i], clusters[i]);
         }
 
         [Test]
@@ -139,7 +204,8 @@ namespace Accord.Tests.MachineLearning
                 kmeans = new KMeans(3);
                 kmeans.Compute(observations, out e);
 
-                if (error != e) differ = true;
+                if (error != e)
+                    differ = true;
             }
 
             Assert.IsTrue(differ);
@@ -159,6 +225,16 @@ namespace Accord.Tests.MachineLearning
         }
 
         [Test]
+        public void KMeansConstructorTest_Distance()
+        {
+            // Create a new algorithm
+            KMeans kmeans = new KMeans(3, Distance.Manhattan);
+            Assert.IsNotNull(kmeans.Distance);
+            Assert.IsTrue(kmeans.Distance is Accord.Math.Distances.Manhattan);
+        }
+
+        [Test]
+        [ExpectedException(typeof(ArgumentException))]
         public void KMeansMoreClustersThanSamples()
         {
             Accord.Math.Tools.SetupGenerator(0);
@@ -182,30 +258,15 @@ namespace Accord.Tests.MachineLearning
 
             KMeans kmeans = new KMeans(15);
 
-            bool thrown = false;
-
-            try
-            {
-                int[] labels = kmeans.Compute(observations);
-            }
-            catch (ArgumentException)
-            {
-                thrown = true;
-            }
-
-            Assert.IsTrue(thrown);
+            int[] labels = kmeans.Compute(observations);
         }
 
         [Test]
         public void DeserializationTest1()
         {
-
             MemoryStream stream = new MemoryStream(Properties.Resources.kmeans);
 
-            BinaryFormatter bf = new BinaryFormatter();
-            object o = bf.DeserializeAnyVersion(stream);
-
-            KMeans kmeans = (KMeans)o;
+            KMeans kmeans = Serializer.Load<KMeans>(stream);
 
 
             KMeans kbase = new KMeans(3);
@@ -214,10 +275,16 @@ namespace Accord.Tests.MachineLearning
             Assert.AreEqual(kbase.MaxIterations, kmeans.MaxIterations);
             Assert.AreEqual(kbase.Tolerance, kmeans.Tolerance);
 
-            Assert.AreEqual(kbase.UseCentroidSeeding, kmeans.UseCentroidSeeding);
-            Assert.AreEqual(kbase.ComputeInformation, kmeans.ComputeInformation);
+            Assert.AreEqual(kbase.UseSeeding, kmeans.UseSeeding);
+            Assert.AreEqual(kbase.ComputeCovariances, kmeans.ComputeCovariances);
 
-            Assert.AreEqual(kbase.Distance, kmeans.Distance);
+            Assert.AreEqual(kbase.ComputeError, kmeans.ComputeError);
+            Assert.AreEqual(kbase.ComputeCovariances, kmeans.ComputeCovariances);
+            Assert.AreEqual(kbase.Error, kmeans.Error);
+
+            Assert.IsTrue(kbase.ComputeError);
+            Assert.IsTrue(kbase.ComputeCovariances);
+            Assert.AreEqual(kbase.Distance.GetType(), kmeans.Distance.GetType());
         }
 
     }

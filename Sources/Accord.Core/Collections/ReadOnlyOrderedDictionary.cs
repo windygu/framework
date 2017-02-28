@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -44,7 +44,7 @@ namespace Accord.Collections
     [Serializable]
     public abstract class ReadOnlyKeyedCollection<TKey, TValue> 
         : ReadOnlyCollection<TValue>, IDictionary<TKey, TValue>, IList<TValue>
-#if NET45
+#if NET45 || NET46
         , IReadOnlyCollection<TValue>
 #endif
     {

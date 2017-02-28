@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -26,7 +26,8 @@ namespace Accord.Imaging
     using System.Drawing;
     using System.Drawing.Imaging;
     using AForge;
-    using AForge.Imaging;
+    using Accord.Imaging;
+    using System;
 
     /// <summary>
     ///   Feature detector based on corners.
@@ -40,10 +41,8 @@ namespace Accord.Imaging
     /// 
     /// <example>
     ///   For an example on how to use this class, please take a look
-    ///   on the example section for <see cref="BagOfVisualWords{T}"/>.
+    ///   on the example section for <c>BagOfVisualWords{T}</c>.
     /// </example>
-    /// 
-    /// <seealso cref="BagOfVisualWords{T}"/>
     /// 
     public class CornerFeaturesDetector : IFeatureDetector<CornerFeaturePoint>
     {
@@ -76,8 +75,7 @@ namespace Accord.Imaging
         /// 
         public List<CornerFeaturePoint> ProcessImage(Bitmap image)
         {
-            List<IntPoint> corners = Detector.ProcessImage(image);
-            return corners.ConvertAll(convert);
+            return Detector.ProcessImage(image).ConvertAll(convert);
         }
 
         /// <summary>
@@ -90,8 +88,7 @@ namespace Accord.Imaging
         /// 
         public List<CornerFeaturePoint> ProcessImage(BitmapData imageData)
         {
-            List<IntPoint> corners = Detector.ProcessImage(imageData);
-            return corners.ConvertAll(convert);
+            return Detector.ProcessImage(imageData).ConvertAll(convert);
         }
 
         /// <summary>
@@ -104,8 +101,23 @@ namespace Accord.Imaging
         /// 
         public List<CornerFeaturePoint> ProcessImage(UnmanagedImage image)
         {
-            List<IntPoint> corners = Detector.ProcessImage(image);
-            return corners.ConvertAll(convert);
+            return Detector.ProcessImage(image).ConvertAll(convert);
+        }
+
+
+        IEnumerable<CornerFeaturePoint> IFeatureDetector<CornerFeaturePoint, double[]>.ProcessImage(Bitmap image)
+        {
+            return ProcessImage(image);
+        }
+
+        IEnumerable<CornerFeaturePoint> IFeatureDetector<CornerFeaturePoint, double[]>.ProcessImage(BitmapData imageData)
+        {
+            return ProcessImage(imageData);
+        }
+
+        IEnumerable<CornerFeaturePoint> IFeatureDetector<CornerFeaturePoint, double[]>.ProcessImage(UnmanagedImage image)
+        {
+            return ProcessImage(image);
         }
 
 
@@ -113,5 +125,47 @@ namespace Accord.Imaging
         {
             return new CornerFeaturePoint(point);
         }
+
+        /// <summary>
+        ///   Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A new object that is a copy of this instance.
+        /// </returns>
+        /// 
+        public object Clone()
+        {
+            return new CornerFeaturesDetector((ICornersDetector)this.Detector.Clone());
+        }
+
+        /// <summary>
+        ///   Performs application-defined tasks associated with freeing, releasing, 
+        ///   or resetting unmanaged resources.
+        /// </summary>
+        /// 
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        ///   Releases unmanaged and - optionally - managed resources.
+        /// </summary>
+        /// 
+        /// <param name="disposing"><c>true</c> to release both managed and unmanaged
+        ///   resources; <c>false</c> to release only unmanaged resources.</param>
+        /// 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // free managed resources
+            }
+            
+            // free native resources if there are any.
+        }
+
     }
 }

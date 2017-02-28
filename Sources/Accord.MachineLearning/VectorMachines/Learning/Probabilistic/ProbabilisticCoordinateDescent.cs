@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -58,6 +58,9 @@ namespace Accord.MachineLearning.VectorMachines.Learning
     using System.Threading;
     using Accord.Statistics.Links;
     using Accord.Statistics.Kernels;
+    using Accord.Math;
+    using Statistics.Models.Regression.Fitting;
+    using Statistics.Models.Regression;
 
     /// <summary>
     ///   L1-regularized logistic regression (probabilistic SVM) 
@@ -90,11 +93,143 @@ namespace Accord.MachineLearning.VectorMachines.Learning
     /// See Yuan et al. (2011) and appendix of LIBLINEAR paper, Fan et al. (2008)</para>
     /// </remarks>
     /// 
+    /// <examples>
+    /// <para>
+    ///   Probabilistic SVMs are exactly the same as logistic regression models 
+    ///   trained using a large-margin decision criteria. As such, any linear SVM 
+    ///   learning algorithm can be used to obtain <see cref="LogisticRegression"/>
+    ///   objects as well.</para>
+    ///   
+    /// <para>
+    ///   The following example shows how to obtain a <see cref="LogisticRegression"/> 
+    ///   from a probabilistic linear <see cref="SupportVectorMachine"/>. It contains
+    ///   exactly the same data used in the <see cref="IterativeReweightedLeastSquares"/>
+    ///   documentation page for <see cref="LogisticRegression"/>.</para>
+    ///   
+    /// <code source="Unit Tests\Accord.Tests.MachineLearning\VectorMachines\Probabilistic\ProbabilisticCoordinateDescentTest.cs" region="doc_logreg"/>
+    /// </examples>
+    /// 
     /// <see cref="SequentialMinimalOptimization"/>
     /// <see cref="ProbabilisticNewtonMethod"/>
     /// 
-    public class ProbabilisticCoordinateDescent : BaseSupportVectorLearning,
-        ISupportVectorMachineLearning, ISupportCancellation
+    public class ProbabilisticCoordinateDescent :
+        BaseProbabilisticCoordinateDescent<SupportVectorMachine, Linear, double[]>,
+        ILinearSupportVectorMachineLearning
+    {
+        /// <summary>
+        ///   Constructs a new Newton method algorithm for L1-regularized
+        ///   logistic regression (probabilistic linear vector machine).
+        /// </summary>
+        /// 
+        public ProbabilisticCoordinateDescent()
+        {
+        }
+
+        /// <summary>
+        /// Creates an instance of the model to be learned. Inheritors
+        /// of this abstract class must define this method so new models
+        /// can be created from the training data.
+        /// </summary>
+        protected override SupportVectorMachine Create(int inputs, Linear kernel)
+        {
+            return new SupportVectorMachine(inputs) { Kernel = kernel };
+        }
+
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        /// 
+        [Obsolete("Please do not pass parameters in the constructor. Use the default constructor and the Learn method instead.")]
+        public ProbabilisticCoordinateDescent(ISupportVectorMachine<double[]> model, double[][] input, int[] output)
+            : base(model, input, output)
+        {
+        }
+    }
+
+    /// <summary>
+    ///   L1-regularized logistic regression (probabilistic SVM) 
+    ///   learning algorithm (-s 6).
+    /// </summary>
+    /// 
+    /// <remarks>
+    /// <para>
+    ///   This class implements a <see cref="SupportVectorMachine"/> learning algorithm
+    ///   specifically crafted for probabilistic linear machines only. It provides a L1-
+    ///   regularized coordinate descent learning algorithm for optimizing the learning
+    ///   problem. The code has been based on liblinear's method <c>solve_l1r_lr</c> 
+    ///   method, whose original description is provided below.
+    /// </para>
+    /// 
+    /// <para>
+    ///   Liblinear's solver <c>-s 6</c>: <c>L1R_LR</c>. 
+    ///   A coordinate descent algorithm for L1-regularized
+    ///   logistic regression (probabilistic svm) problems.
+    /// </para>
+    /// 
+    /// <code>
+    ///   min_w \sum |wj| + C \sum log(1+exp(-yi w^T xi)),
+    /// </code>
+    /// 
+    /// <para>
+    /// Given: x, y, Cp, Cn, and eps as the stopping tolerance</para>
+    ///
+    /// <para>
+    /// See Yuan et al. (2011) and appendix of LIBLINEAR paper, Fan et al. (2008)</para>
+    /// </remarks>
+    /// 
+    /// <examples>
+    /// <para>
+    ///   Probabilistic SVMs are exactly the same as logistic regression models 
+    ///   trained using a large-margin decision criteria. As such, any linear SVM 
+    ///   learning algorithm can be used to obtain <see cref="LogisticRegression"/>
+    ///   objects as well.</para>
+    ///   
+    /// <para>
+    ///   The following example shows how to obtain a <see cref="LogisticRegression"/> 
+    ///   from a probabilistic linear <see cref="SupportVectorMachine"/>. It contains
+    ///   exactly the same data used in the <see cref="IterativeReweightedLeastSquares"/>
+    ///   documentation page for <see cref="LogisticRegression"/>.</para>
+    ///   
+    /// <code source="Unit Tests\Accord.Tests.MachineLearning\VectorMachines\Probabilistic\ProbabilisticCoordinateDescentTest.cs" region="doc_logreg"/>
+    /// </examples>
+    /// 
+    /// <see cref="SequentialMinimalOptimization"/>
+    /// <see cref="ProbabilisticNewtonMethod"/>
+    /// 
+    public class ProbabilisticCoordinateDescent<TKernel, TInput> :
+        BaseProbabilisticCoordinateDescent<SupportVectorMachine<TKernel, TInput>, TKernel, TInput>
+        where TKernel : struct, ILinear<TInput>
+    {
+        /// <summary>
+        ///   Constructs a new Newton method algorithm for L1-regularized
+        ///   logistic regression (probabilistic linear vector machine).
+        /// </summary>
+        /// 
+        public ProbabilisticCoordinateDescent()
+        {
+
+        }
+
+        /// <summary>
+        /// Creates an instance of the model to be learned. Inheritors
+        /// of this abstract class must define this method so new models
+        /// can be created from the training data.
+        /// </summary>
+        protected override SupportVectorMachine<TKernel, TInput> Create(int inputs, TKernel kernel)
+        {
+            return new SupportVectorMachine<TKernel, TInput>(inputs, kernel);
+        }
+    }
+
+
+    /// <summary>
+    ///   Base class for L1-regularized logistic regression (probabilistic SVM) learning algorithm (-s 6).
+    /// </summary>
+    /// 
+    public abstract class BaseProbabilisticCoordinateDescent<TModel, TKernel, TInput> :
+        BaseSupportVectorClassification<TModel, TKernel, TInput>
+        where TModel : SupportVectorMachine<TKernel, TInput>
+        where TKernel : struct, ILinear<TInput>
     {
         double[] weights;
         int biasIndex;
@@ -105,23 +240,13 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         int max_newton_iter = 100;
         int max_num_linesearch = 20;
 
-        /// <summary>
-        ///   Constructs a new Newton method algorithm for L1-regularized
-        ///   logistic regression (probabilistic linear vector machine).
-        /// </summary>
-        /// 
-        /// <param name="machine">A support vector machine.</param>
-        /// <param name="inputs">The input data points as row vectors.</param>
-        /// <param name="outputs">The output label for each input point. Values must be either -1 or +1.</param>
-        /// 
-        public ProbabilisticCoordinateDescent(SupportVectorMachine machine, 
-            double[][] inputs, int[] outputs) : base(machine, inputs, outputs)
-        {
-            if (!IsLinear || (Kernel as Linear).Constant != 0)
-                throw new ArgumentException("Only linear machines are supported.", "machine");
 
-            this.weights = new double[machine.Inputs + 1];
-            this.biasIndex = machine.Inputs;
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseProbabilisticCoordinateDescent{TModel, TKernel, TInput}"/> class.
+        /// </summary>
+        protected BaseProbabilisticCoordinateDescent()
+        {
+
         }
 
         /// <summary>
@@ -171,8 +296,10 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             set { eps = value; }
         }
 
-        private double[][] transposeAndAugment(double[][] inputs)
+        private double[][] transposeAndAugment(TInput[] input)
         {
+            double[][] inputs = Kernel.ToDouble(input);
+
             int oldRows = inputs.Length;
             int oldCols = inputs[0].Length;
 
@@ -180,14 +307,12 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             for (int i = 0; i < ones.Length; i++)
                 ones[i] = 1.0;
 
-
-            double[][] x = new double[oldCols + 1][];
+            var x = new double[oldCols + 1][];
             for (int i = 0; i < oldCols; i++)
             {
                 var col = x[i] = new double[oldRows];
-
                 for (int j = 0; j < col.Length; j++)
-                    col[j] = Inputs[j][i];
+                    col[j] = inputs[j][i];
             }
 
             x[oldCols] = ones;
@@ -200,18 +325,17 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         ///   Runs the learning algorithm.
         /// </summary>
         /// 
-        /// <param name="token">A token to stop processing when requested.</param>
-        /// <param name="c">The complexity for each sample.</param>
-        /// 
-        protected override void Run(CancellationToken token, double[] c)
+        protected override void InnerRun()
         {
+            int samples = Inputs.Length;
+            int parameters = Kernel.GetLength(Inputs) + 1;
+            this.weights = new double[parameters];
+            this.biasIndex = parameters - 1;
+
             int[] y = Outputs;
             double[] w = weights;
 
             double[][] inputs = transposeAndAugment(Inputs);
-
-            int parameters = w.Length;
-            int samples = Inputs.Length;
 
             int newton_iter = 0;
             int iter = 0;
@@ -242,6 +366,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             double[] exp_wTx_new = new double[samples];
             double[] tau = new double[samples];
             double[] D = new double[samples];
+            double[] c = C;
 
             // double[] C = { Cn, 0, Cp };
 
@@ -257,7 +382,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                 xjneg_sum[j] = 0;
 
                 double[] x = inputs[j];
-
+                
                 for (int k = 0; k < x.Length; k++)
                 {
                     exp_wTx[k] += w[j] * x[k];
@@ -279,6 +404,9 @@ namespace Accord.MachineLearning.VectorMachines.Learning
 
             while (newton_iter < max_newton_iter)
             {
+                if (Token.IsCancellationRequested)
+                    break;
+
                 Gmax_new = 0;
                 Gnorm1_new = 0;
                 active_size = w.Length;
@@ -290,7 +418,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                     Grad[j] = 0;
 
                     double tmp = 0;
-                    double[] x = inputs[j]; 
+                    double[] x = inputs[j];
 
                     for (int k = 0; k < x.Length; k++)
                     {
@@ -346,11 +474,14 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                 for (int i = 0; i < xTd.Length; i++)
                     xTd[i] = 0;
 
-                var rand = Accord.Math.Tools.Random;
+                var rand = Accord.Math.Random.Generator.Random;
 
                 // optimize QP over wpd
                 while (iter < max_iter)
                 {
+                    if (Token.IsCancellationRequested)
+                        break;
+
                     QP_Gmax_new = 0;
                     QP_Gnorm1_new = 0;
 
@@ -570,12 +701,19 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             Trace.WriteLine("Objective value = " + v);
             Trace.WriteLine("#nonzeros/#features = " + nnz + "/" + w.Length);
 
-            Machine.Weights = new double[Machine.Inputs];
-            for (int i = 0; i < Machine.Weights.Length; i++)
-                Machine.Weights[i] = weights[i];
-            Machine.Threshold = weights[biasIndex];
-            Machine.Link = new LogLinkFunction();
+            Model.Weights = new double[] { 1.0 };
+            Model.SupportVectors = new[] { Kernel.CreateVector(weights.First(weights.Length - 1)) };
+            Model.Threshold = weights[biasIndex];
+            Model.IsProbabilistic = true;
         }
 
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        /// 
+        public BaseProbabilisticCoordinateDescent(ISupportVectorMachine<TInput> model, TInput[] input, int[] output)
+            : base(model, input, output)
+        {
+        }
     }
 }

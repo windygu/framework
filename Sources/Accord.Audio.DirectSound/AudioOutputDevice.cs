@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -254,8 +254,8 @@ namespace Accord.DirectSound
 
             notifications = list.ToArray();
 
-            System.Diagnostics.Debug.Assert(notifications[firstHalfBufferIndex].Offset == bufferSize / 2 + 1);
-            System.Diagnostics.Debug.Assert(notifications[secondHalfBufferIndex].Offset == bufferSize - 1);
+            Accord.Diagnostics.Debug.Assert(notifications[firstHalfBufferIndex].Offset == bufferSize / 2 + 1);
+            Accord.Diagnostics.Debug.Assert(notifications[secondHalfBufferIndex].Offset == bufferSize - 1);
 
             // Make a copy of the wait handles
             waitHandles = new WaitHandle[notifications.Length];
@@ -299,10 +299,6 @@ namespace Accord.DirectSound
         {
             if (thread == null)
             {
-                // check source
-                if (device == Guid.Empty)
-                    throw new ArgumentException("Audio output is not specified");
-
                 isPlaying = true;
 
                 // create events

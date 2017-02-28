@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -35,23 +35,6 @@ namespace Accord.Tests.Statistics
     public class HiddenMarkovModelTest
     {
 
-
-        private TestContext testContextInstance;
-
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
-
-
-
         [Test]
         public void ConstructorTest()
         {
@@ -78,10 +61,13 @@ namespace Accord.Tests.Statistics
 
             Assert.AreEqual(2, hmm.States);
             Assert.AreEqual(4, hmm.Symbols);
-            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.Transitions));
+            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.LogTransitions));
             Assert.IsTrue(Matrix.Log(B).IsEqual(hmm.Emissions));
             Assert.IsTrue(Matrix.Log(pi).IsEqual(hmm.Probabilities));
 
+            Assert.IsTrue(A.IsEqual(hmm.LogTransitions.Exp()));
+            Assert.IsTrue(B.IsEqual(hmm.LogEmissions.Exp()));
+            Assert.IsTrue(pi.IsEqual(hmm.LogInitial.Exp()));
 
 
             hmm = new HiddenMarkovModel(new Forward(2), 4);
@@ -102,7 +88,7 @@ namespace Accord.Tests.Statistics
 
             Assert.AreEqual(2, hmm.States);
             Assert.AreEqual(4, hmm.Symbols);
-            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.Transitions));
+            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.LogTransitions));
             Assert.IsTrue(Matrix.Log(B).IsEqual(hmm.Emissions));
             Assert.IsTrue(Matrix.Log(pi).IsEqual(hmm.Probabilities));
 
@@ -110,15 +96,17 @@ namespace Accord.Tests.Statistics
             hmm = new HiddenMarkovModel(A, B, pi);
             Assert.AreEqual(2, hmm.States);
             Assert.AreEqual(4, hmm.Symbols);
-            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.Transitions));
-            Assert.IsTrue(Matrix.Log(B).IsEqual(hmm.Emissions));
+            Assert.IsTrue(Matrix.Log(A).IsEqual(hmm.LogTransitions));
+            Assert.IsTrue(Matrix.Log(B).IsEqual(hmm.Emissions, 1e-10));
             Assert.IsTrue(Matrix.Log(pi).IsEqual(hmm.Probabilities));
         }
 
         [Test]
         public void DecodeTest()
         {
-            // Example taken from http://en.wikipedia.org/wiki/Viterbi_algorithm
+            #region doc_decode
+            // In this example, we will reproduce the example on the Viterbi algorithm
+            // available on Wikipedia: http://en.wikipedia.org/wiki/Viterbi_algorithm
 
             // Create the transition matrix A
             double[,] transition = 
@@ -135,32 +123,33 @@ namespace Accord.Tests.Statistics
             };
 
             // Create the initial probabilities pi
-            double[] initial =
-            {
-                0.6, 0.4
-            };
+            double[] initial = { 0.6, 0.4 };
 
             // Create a new hidden Markov model
-            HiddenMarkovModel hmm = new HiddenMarkovModel(transition, emission, initial);
+            var hmm = new HiddenMarkovModel(transition, emission, initial);
 
             // After that, one could, for example, query the probability
             // of a sequence occurring. We will consider the sequence
             int[] sequence = new int[] { 0, 1, 2 };
 
             // And now we will evaluate its likelihood
-            double logLikelihood = hmm.Evaluate(sequence);
+            double logLikelihood = hmm.LogLikelihood(sequence);
 
             // At this point, the log-likelihood of the sequence
             // occurring within the model is -3.3928721329161653.
 
             // We can also get the Viterbi path of the sequence
-            int[] path = hmm.Decode(sequence, out logLikelihood);
+            int[] path = hmm.Decode(sequence);
+
+            // And the likelihood along the Viterbi path is
+            double viterbi; hmm.Decode(sequence, out viterbi);
 
             // At this point, the state path will be 1-0-0 and the
             // log-likelihood will be -4.3095199438871337
+            #endregion
 
-
-            Assert.AreEqual(logLikelihood, Math.Log(0.01344), 1e-10);
+            Assert.AreEqual(-3.3928721329161653, logLikelihood);
+            Assert.AreEqual(-4.3095199438871337, viterbi);
             Assert.AreEqual(path[0], 1);
             Assert.AreEqual(path[1], 0);
             Assert.AreEqual(path[2], 0);
@@ -277,17 +266,17 @@ namespace Accord.Tests.Statistics
             var hmmP = Matrix.Exp(hmm.Probabilities);
 
 
-            Assert.IsTrue(Matrix.IsEqual(A, hmmA, 0.1));
-            Assert.IsTrue(Matrix.IsEqual(B, hmmB, 0.1));
+            Assert.IsTrue(Matrix.IsEqual(A, hmmA, atol: 0.1));
+            Assert.IsTrue(Matrix.IsEqual(B, hmmB, atol: 0.1));
             Assert.IsTrue(Matrix.IsEqual(pi, hmmP));
         }
 
         [Test]
         public void LearnTest3()
         {
-            // We will try to create a Hidden Markov Model which
-            //  can detect if a given sequence starts with a zero
-            //  and has any number of ones after that.
+            #region doc_learn
+            // We will create a Hidden Markov Model to detect 
+            // whether a given sequence starts with a zero.
             int[][] sequences = new int[][] 
             {
                 new int[] { 0,1,1,1,1,0,1,1,1,1 },
@@ -299,48 +288,71 @@ namespace Accord.Tests.Statistics
                 new int[] { 0,1,1,1,1,1,1,1,1,1 },
             };
 
-            // Creates a new Hidden Markov Model with 3 states for
+            // Create a new Hidden Markov Model with 3 states for
             //  an output alphabet of two characters (zero and one)
-            HiddenMarkovModel hmm = new HiddenMarkovModel(3, 2);
+            var hmm = new HiddenMarkovModel(states: 3, symbols: 2);
 
-            // Try to fit the model to the data until the difference in
-            //  the average log-likelihood changes only by as little as 0.0001
-            var teacher = new BaumWelchLearning(hmm) { Tolerance = 0.0001, Iterations = 0 };
-            double ll = teacher.Run(sequences);
+            // Create the learning algorithm
+            var teacher = new BaumWelchLearning(hmm)
+            {
+                Tolerance = 0.0001, // until log-likelihood changes less than 0.0001
+                Iterations = 0      // and use as many iterations as needed
+            };
 
-            // Calculate the probability that the given
-            //  sequences originated from the model
-            double l1; hmm.Decode(new int[] { 0, 1 }, out l1);  // 0.4999
-            double l2; hmm.Decode(new int[] { 0, 1, 1, 1 }, out l2);  // 0.1145
+            // Estimate the model
+            teacher.Learn(sequences);
+
+
+            // Now we can calculate the probability that the given
+            // sequences originated from the model. We can compute
+            // those probabilities using the Viterbi algorithm:
+            double vl1; hmm.Decode(new int[] { 0, 1 }, out vl1);        // -0.69317855
+            double vl2; hmm.Decode(new int[] { 0, 1, 1, 1 }, out vl2);  // -2.16644878
 
             // Sequences which do not start with zero have much lesser probability.
-            double l3; hmm.Decode(new int[] { 1, 1 }, out l3);  // 0.0000
-            double l4; hmm.Decode(new int[] { 1, 0, 0, 0 }, out l4);  // 0.0000
+            double vl3; hmm.Decode(new int[] { 1, 1 }, out vl3);        // -11.3580034
+            double vl4; hmm.Decode(new int[] { 1, 0, 0, 0 }, out vl4);  // -38.6759130
 
             // Sequences which contains few errors have higher probability
             //  than the ones which do not start with zero. This shows some
             //  of the temporal elasticity and error tolerance of the HMMs.
-            double l5; hmm.Decode(new int[] { 0, 1, 0, 1, 1, 1, 1, 1, 1 }, out l5); // 0.0002
-            double l6; hmm.Decode(new int[] { 0, 1, 1, 1, 1, 1, 1, 0, 1 }, out l6); // 0.0002
+            double vl5; hmm.Decode(new int[] { 0, 1, 0, 1, 1, 1, 1, 1, 1 }, out vl5); // -8.22665
+            double vl6; hmm.Decode(new int[] { 0, 1, 1, 1, 1, 1, 1, 0, 1 }, out vl6); // -8.22665
 
-            ll = System.Math.Exp(ll);
-            l1 = System.Math.Exp(l1);
-            l2 = System.Math.Exp(l2);
-            l3 = System.Math.Exp(l3);
-            l4 = System.Math.Exp(l4);
-            l5 = System.Math.Exp(l5);
-            l6 = System.Math.Exp(l6);
 
-            Assert.AreEqual(1.2114235662225779, ll, 1e-4);
-            Assert.AreEqual(0.4999419764097881, l1, 1e-4);
-            Assert.AreEqual(0.1145702973735144, l2, 1e-4);
-            Assert.AreEqual(0.0000529972606821, l3, 1e-4);
-            Assert.AreEqual(0.0000000000000001, l4, 1e-4);
-            Assert.AreEqual(0.0002674509390361, l5, 1e-4);
-            Assert.AreEqual(0.0002674509390361, l6, 1e-4);
+            // Additionally, we can also compute the probability 
+            // of those sequences using the forward algorithm:
+            double fl1 = hmm.LogLikelihood(new int[] { 0, 1 });        // -0.000031369
+            double fl2 = hmm.LogLikelihood(new int[] { 0, 1, 1, 1 });  // -0.087005121
 
-            Assert.IsTrue(l1 > l3 && l1 > l4);
-            Assert.IsTrue(l2 > l3 && l2 > l4);
+            // Sequences which do not start with zero have much lesser probability.
+            double fl3 = hmm.LogLikelihood(new int[] { 1, 1 });        // -10.66485629
+            double fl4 = hmm.LogLikelihood(new int[] { 1, 0, 0, 0 });  // -36.61788687
+
+            // Sequences which contains few errors have higher probability
+            //  than the ones which do not start with zero. This shows some
+            //  of the temporal elasticity and error tolerance of the HMMs.
+            double fl5 = hmm.LogLikelihood(new int[] { 0, 1, 0, 1, 1, 1, 1, 1, 1 }); // -3.3744416
+            double fl6 = hmm.LogLikelihood(new int[] { 0, 1, 1, 1, 1, 1, 1, 0, 1 }); // -3.3744416
+            #endregion
+
+
+            Assert.AreEqual(-0.69317855044301457, vl1, 1e-4);
+            Assert.AreEqual(-2.166448784882073, vl2, 1e-4);
+            Assert.AreEqual(-11.358003471944887, vl3, 1e-4);
+            Assert.AreEqual(-38.675913006221506, vl4, 1e-4);
+            Assert.AreEqual(-8.22664996599565, vl5, 1e-4);
+            Assert.AreEqual(-8.2266499659956516, vl6, 1e-4);
+
+            Assert.IsTrue(vl1 > vl3 && vl1 > vl4);
+            Assert.IsTrue(vl2 > vl3 && vl2 > vl4);
+
+            Assert.AreEqual(-0.000031369883069287674, fl1, 1e-4);
+            Assert.AreEqual(-0.087005121634496585, fl2, 1e-4);
+            Assert.AreEqual(-10.664856291384941, fl3, 1e-4);
+            Assert.AreEqual(-36.617886878165528, fl4, 1e-4);
+            Assert.AreEqual(-3.3744415883604058, fl5, 1e-4);
+            Assert.AreEqual(-3.3744426259067066, fl6, 1e-4);
         }
 
         [Test]
@@ -438,66 +450,6 @@ namespace Accord.Tests.Statistics
             }
 
             Assert.IsTrue(thrown);
-        }
-
-        [Test]
-        public void PredictTest()
-        {
-            int[][] sequences = new int[][] 
-            {
-                new int[] { 0, 3, 1, 2 },
-            };
-
-
-            HiddenMarkovModel hmm = new HiddenMarkovModel(new Forward(4), 4);
-
-            var teacher = new BaumWelchLearning(hmm) { Tolerance = 1e-10, Iterations = 0 };
-            double ll = teacher.Run(sequences);
-
-            double l11, l12, l13, l14;
-
-            int p1 = hmm.Predict(new int[] { 0 }, 1, out l11)[0];
-            int p2 = hmm.Predict(new int[] { 0, 3 }, 1, out l12)[0];
-            int p3 = hmm.Predict(new int[] { 0, 3, 1 }, 1, out l13)[0];
-            int p4 = hmm.Predict(new int[] { 0, 3, 1, 2 }, 1, out l14)[0];
-
-            Assert.AreEqual(3, p1);
-            Assert.AreEqual(1, p2);
-            Assert.AreEqual(2, p3);
-            Assert.AreEqual(2, p4);
-
-            double l21 = hmm.Evaluate(new int[] { 0, 3 });
-            double l22 = hmm.Evaluate(new int[] { 0, 3, 1 });
-            double l23 = hmm.Evaluate(new int[] { 0, 3, 1, 2 });
-            double l24 = hmm.Evaluate(new int[] { 0, 3, 1, 2, 2 });
-
-            Assert.AreEqual(l11, l21, 1e-10);
-            Assert.AreEqual(l12, l22, 1e-10);
-            Assert.AreEqual(l13, l23, 1e-10);
-            Assert.AreEqual(l14, l24, 1e-10);
-
-            Assert.IsFalse(double.IsNaN(l11));
-            Assert.IsFalse(double.IsNaN(l12));
-            Assert.IsFalse(double.IsNaN(l13));
-            Assert.IsFalse(double.IsNaN(l14));
-
-            Assert.IsFalse(double.IsNaN(l21));
-            Assert.IsFalse(double.IsNaN(l22));
-            Assert.IsFalse(double.IsNaN(l23));
-            Assert.IsFalse(double.IsNaN(l24));
-
-            double ln1;
-            int[] pn = hmm.Predict(new int[] { 0 }, 4, out ln1);
-
-            Assert.AreEqual(4, pn.Length);
-            Assert.AreEqual(3, pn[0]);
-            Assert.AreEqual(1, pn[1]);
-            Assert.AreEqual(2, pn[2]);
-            Assert.AreEqual(2, pn[3]);
-
-            double ln2 = hmm.Evaluate(new int[] { 0, 3, 1, 2, 2 });
-
-            Assert.AreEqual(ln1, ln2, 1e-10);
         }
 
         [Test]
@@ -640,10 +592,10 @@ namespace Accord.Tests.Statistics
         [Test]
         public void GenerateTest2()
         {
-            Accord.Math.Tools.SetupGenerator(42);
+            #region doc_generate
+            Accord.Math.Random.Generator.Seed = 42;
 
-            // Consider some phrases:
-            //
+            // Let's say we have the following set of sequences
             string[][] phrases =
             {
                 new[] { "those", "are", "sample", "words", "from", "a", "dictionary" },
@@ -669,13 +621,13 @@ namespace Accord.Tests.Statistics
             int symbols = codebook["Words"].Symbols; // We have 7 different words
 
             // Create the hidden Markov model
-            HiddenMarkovModel hmm = new HiddenMarkovModel(topology, symbols);
+            var hmm = new HiddenMarkovModel(topology, symbols);
 
             // Create the learning algorithm
-            BaumWelchLearning teacher = new BaumWelchLearning(hmm);
+            var teacher = new BaumWelchLearning(hmm);
 
-            // Teach the model about the phrases
-            double error = teacher.Run(sequence);
+            // Teach the model
+            teacher.Learn(sequence);
 
             // Now, we can ask the model to generate new samples
             // from the word distributions it has just learned:
@@ -684,6 +636,7 @@ namespace Accord.Tests.Statistics
 
             // And the result will be: "those", "are", "words".
             string[] result = codebook.Translate("Words", sample);
+            #endregion
 
             Assert.AreEqual("those", result[0]);
             Assert.AreEqual("are", result[1]);
@@ -694,7 +647,7 @@ namespace Accord.Tests.Statistics
         public void PosteriorTest1()
         {
             // Example from http://ai.stanford.edu/~serafim/CS262_2007/notes/lecture5.pdf
-       
+
 
             double[,] A = 
             {
@@ -745,15 +698,15 @@ namespace Accord.Tests.Statistics
 
             int loaded = 0;
             for (int i = 0; i < start; i++)
-			 if (p[i][1] > 0.95)
-                 loaded++;
-                
+                if (p[i][1] > 0.95)
+                    loaded++;
+
             Assert.AreEqual(0, loaded);
 
             loaded = 0;
             for (int i = start; i < end; i++)
-			 if (p[i][1] > 0.95)
-                 loaded++;
+                if (p[i][1] > 0.95)
+                    loaded++;
 
             Assert.IsTrue(loaded > 15);
 

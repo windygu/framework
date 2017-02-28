@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ using Accord.Math;
 using Accord.Statistics.Kernels;
 using Gestures.Native;
 
-namespace Gestures.SVMs
+namespace SampleApp
 {
     /// <summary>
     ///   Mouse gesture recognition sample application with Kernel Support 
@@ -55,7 +55,7 @@ namespace Gestures.SVMs
     {
 
         private Database database;
-        private MulticlassSupportVectorMachine svm;
+        private MulticlassSupportVectorMachine<DynamicTimeWarping> svm;
 
 
         public MainForm()
@@ -98,27 +98,29 @@ namespace Gestures.SVMs
             // Creates a new learning machine. Please note how the number of inputs is given
             // as zero: this means the machine will accept variable-length sequences as input.
             //
-            svm = new MulticlassSupportVectorMachine(inputs: 0, 
+            svm = new MulticlassSupportVectorMachine<DynamicTimeWarping>(inputs: 0, 
                 kernel: new DynamicTimeWarping(2), classes: classes.Count);
 
 
             // Create the learning algorithm to teach the multiple class classifier
-            var teacher = new MulticlassSupportVectorLearning(svm, inputs, outputs)
+            var teacher = new MulticlassSupportVectorLearning<DynamicTimeWarping>()
             {
                 // Setup the learning algorithm for each 1x1 subproblem
-                Algorithm = (machine, classInputs, classOutputs, i, j) =>
-                    new SequentialMinimalOptimization(machine, classInputs, classOutputs)
+                Learner = (param) => new SequentialMinimalOptimization<DynamicTimeWarping>()
+                {
+                    Kernel = new DynamicTimeWarping(2),
+                }
             };
 
 
             // Run the learning algorithm
-            double error = teacher.Run();
+            this.svm = teacher.Learn(inputs, outputs);
 
 
             // Classify all training instances
             foreach (var sample in database.Samples)
             {
-                sample.RecognizedAs = svm.Compute(sample.Input);
+                sample.RecognizedAs = svm.Decide(sample.Input);
             }
 
             foreach (DataGridViewRow row in gridSamples.Rows)
@@ -233,7 +235,7 @@ namespace Gestures.SVMs
 
             else
             {
-                int index = svm.Compute(input);
+                int index = svm.Decide(input);
 
                 string label = database.Classes[index];
                 lbHaveYouDrawn.Text = String.Format("Have you drawn a {0}?", label);

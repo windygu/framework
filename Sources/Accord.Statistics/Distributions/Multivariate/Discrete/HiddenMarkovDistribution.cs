@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -107,6 +107,16 @@ namespace Accord.Statistics.Distributions.Multivariate
         }
 
         /// <summary>
+        /// Gets the support interval for this distribution.
+        /// </summary>
+        /// <value>A <see cref="IntRange" /> containing
+        /// the support interval for this distribution.</value>
+        public override IntRange[] Support
+        {
+            get { return new [] {  new IntRange(0, model.NumberOfSymbols) }; }
+        }
+
+        /// <summary>
         ///   Gets the probability mass function (pmf) for
         ///   this distribution evaluated at point <c>x</c>.
         /// </summary>
@@ -125,7 +135,7 @@ namespace Accord.Statistics.Distributions.Multivariate
         /// 
         public override double ProbabilityMassFunction(int[] x)
         {
-            return Math.Exp(model.Evaluate(x));
+            return Math.Exp(model.LogLikelihood(x));
         }
 
         /// <summary>
@@ -147,7 +157,7 @@ namespace Accord.Statistics.Distributions.Multivariate
         /// 
         public override double LogProbabilityMassFunction(int[] x)
         {
-            return model.Evaluate(x);
+            return model.LogLikelihood(x);
         }
 
         /// <summary>

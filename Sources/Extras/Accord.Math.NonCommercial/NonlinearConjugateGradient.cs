@@ -109,7 +109,7 @@ namespace Accord.Math.Optimization
         IGradientOptimizationMethod
     {
 
-        // constant from Wolfe Powell conditions 
+        // constants from Wolfe Powell conditions 
         private double RHO = 0.01;
         private double SIG = 0.5;
         private double INT = 0.1;
@@ -240,6 +240,9 @@ namespace Accord.Math.Optimization
 
             while (iteration < Math.Abs(length))
             {
+                if (Token.IsCancellationRequested)
+                    break;
+
                 if (length > 0)
                     iteration++; // count epoch(iter)
 
@@ -432,8 +435,8 @@ namespace Accord.Math.Optimization
                     f1 = f2;
 
                     // Polack- Ribiere direction
-                    var ptemp1 = df2.InnerProduct(df2) - df1.InnerProduct(df2);
-                    var ptemp2 = df1.InnerProduct(df1);
+                    var ptemp1 = df2.Dot(df2) - df1.Dot(df2);
+                    var ptemp2 = df1.Dot(df1);
                     var ptemp3 = ptemp1 / ptemp2;
 
                     for (int j = 0; j < s.Length; j++)

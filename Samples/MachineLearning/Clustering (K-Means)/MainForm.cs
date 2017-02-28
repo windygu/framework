@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,9 @@ using Accord.Imaging.Converters;
 using Accord.MachineLearning;
 using Accord.Math;
 using Accord.Statistics.Distributions.DensityKernels;
+using Accord.Math.Distances;
 
-namespace Clustering.K_Means
+namespace SampleApp
 {
     /// <summary>
     ///   K-Means / Mean-Shift color clusterization sample application. This
@@ -63,7 +64,8 @@ namespace Clustering.K_Means
         {
             if (radioClusters.Checked)
                 runKMeans();
-            else runMeanShift();
+            else 
+                runMeanShift();
         }
 
         /// <summary>
@@ -88,18 +90,18 @@ namespace Clustering.K_Means
 
             // Create a K-Means algorithm using given k and a
             //  square Euclidean distance as distance metric.
-            KMeans kmeans = new KMeans(k, Distance.SquareEuclidean)
+            KMeans kmeans = new KMeans(k, new SquareEuclidean())
             {
                 Tolerance = 0.05
             };
 
             // Compute the K-Means algorithm until the difference in
             //  cluster centroids between two iterations is below 0.05
-            int[] idx = kmeans.Compute(pixels);
+            int[] idx = kmeans.Learn(pixels).Decide(pixels);
 
 
             // Replace every pixel with its corresponding centroid
-            pixels.ApplyInPlace((x, i) => kmeans.Clusters.Centroids[idx[i]]);
+            pixels.Apply((x, i) => kmeans.Clusters.Centroids[idx[i]], result: pixels);
 
             // Show resulting image in the picture box
             Bitmap result; arrayToImage.Convert(pixels, out result);
@@ -136,19 +138,19 @@ namespace Clustering.K_Means
             
             var meanShift = new MeanShift(pixelSize, kernel, sigma)
             {
-                Tolerance = 0.05,
-                MaxIterations = 10
+                //Tolerance = 0.05,
+                //MaxIterations = 10
             };
 
             
             // Compute the mean-shift algorithm until the difference 
             // in shift vectors between two iterations is below 0.05
             
-            int[] idx = meanShift.Compute(pixels);
+            int[] idx = meanShift.Learn(pixels).Decide(pixels);
 
 
             // Replace every pixel with its corresponding centroid
-            pixels.ApplyInPlace((x, i) => meanShift.Clusters.Modes[idx[i]]);
+            pixels.Apply((x, i) => meanShift.Clusters.Modes[idx[i]], result: pixels);
 
             // Show resulting image in the picture box
             Bitmap result; arrayToImage.Convert(pixels, out result);

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -59,9 +59,96 @@
 
 namespace Accord.MachineLearning.VectorMachines.Learning
 {
+    using Accord.Statistics.Kernels;
     using System;
+    using Accord.Math;
     using System.Diagnostics;
     using System.Threading;
+    using Statistics.Models.Regression.Linear;
+
+    /// <summary>
+    ///   L1-regularized L2-loss support vector 
+    ///   Support Vector Machine learning (-s 5).
+    /// </summary>
+    /// 
+    /// <remarks>
+    /// <para>
+    ///   This class implements a <see cref="SupportVectorMachine"/> learning algorithm
+    ///   specifically crafted for linear machines only. It provides a L1-regularized, 
+    ///   L2-loss coordinate descent learning algorithm for optimizing the primal form of
+    ///   learning. The code has been based on liblinear's method <c>solve_l1r_l2_svc</c>
+    ///   method, whose original description is provided below.
+    /// </para>
+    /// 
+    /// <para>
+    ///   Liblinear's solver <c>-s 5</c>: <c>L1R_L2LOSS_svc</c>. A coordinate descent 
+    ///   algorithm for L2-loss SVM problems in the primal.
+    /// </para>
+    /// 
+    /// <code>
+    ///  min_w \sum |wj| + C \sum max(0, 1-yi w^T xi)^2,
+    /// </code>
+    /// 
+    /// <para>
+    ///   Given: x, y, Cp, Cn and eps as the stopping tolerance</para>
+    ///
+    /// <para>
+    ///   See Yuan et al. (2010) and appendix of LIBLINEAR paper, Fan et al. (2008)</para>
+    /// </remarks>
+    /// 
+    /// <examples>
+    /// <para>
+    ///   The following example shows how to obtain a <see cref="MultipleLinearRegression"/> 
+    ///   from a linear <see cref="SupportVectorMachine"/>. It contains exactly the same data 
+    ///   used in the <see cref="OrdinaryLeastSquares"/> documentation page for 
+    ///   <see cref="MultipleLinearRegression"/>.</para>
+    ///   
+    /// <code source="Unit Tests\Accord.Tests.MachineLearning\VectorMachines\LinearCoordinateDescentTest.cs" region="doc_linreg"/>
+    /// </examples>
+    /// 
+    /// <see cref="SequentialMinimalOptimization"/>
+    /// <see cref="LinearNewtonMethod"/>
+    /// <see cref="LinearDualCoordinateDescent"/>
+    /// 
+    public class LinearCoordinateDescent :
+        BaseLinearCoordinateDescent<SupportVectorMachine, Linear>,
+        ILinearSupportVectorMachineLearning
+    {
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        [Obsolete("Please do not pass parameters in the constructor. Use the default constructor and the Learn method instead.")]
+        public LinearCoordinateDescent(SupportVectorMachine model, double[][] input, int[] output)
+            : base(model, input, output)
+        {
+        }
+
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        [Obsolete("Please do not pass parameters in the constructor. Use the default constructor and the Learn method instead.")]
+        public LinearCoordinateDescent(KernelSupportVectorMachine model, double[][] input, int[] output)
+            : base(model, input, output)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="LinearCoordinateDescent"/> class.
+        /// </summary>
+        public LinearCoordinateDescent()
+        {
+        }
+
+        /// <summary>
+        /// Creates an instance of the model to be learned. Inheritors
+        /// of this abstract class must define this method so new models
+        /// can be created from the training data.
+        /// </summary>
+        protected override SupportVectorMachine Create(int inputs, Linear kernel)
+        {
+            return new SupportVectorMachine(inputs) { Kernel = kernel };
+        }
+    }
 
     /// <summary>
     ///   L1-regularized L2-loss support vector 
@@ -97,8 +184,56 @@ namespace Accord.MachineLearning.VectorMachines.Learning
     /// <see cref="LinearNewtonMethod"/>
     /// <see cref="LinearDualCoordinateDescent"/>
     /// 
-    public class LinearCoordinateDescent : BaseSupportVectorLearning,
-        ISupportVectorMachineLearning, ISupportCancellation
+    public class LinearCoordinateDescent<TKernel> :
+        BaseLinearCoordinateDescent<SupportVectorMachine<TKernel>, TKernel>
+        where TKernel : ILinear
+    {
+        /// <summary>
+        /// Creates an instance of the model to be learned. Inheritors
+        /// of this abstract class must define this method so new models
+        /// can be created from the training data.
+        /// </summary>
+        protected override SupportVectorMachine<TKernel> Create(int inputs, TKernel kernel)
+        {
+            return new SupportVectorMachine<TKernel>(inputs, kernel);
+        }
+    }
+
+    // TODO: Add support for sparse linear kernels
+    //public class LinearCoordinateDescent<TKernel, TInput> :
+    //    BaseLinearCoordinateDescent<SupportVectorMachine<TKernel, TInput>, TKernel, TInput>
+    //    where TKernel : struct, ILinear<TInput>
+    //    where TInput : ICloneable, IList
+    //{
+    //    /// <summary>
+    //    /// Creates an instance of the model to be learned. Inheritors
+    //    /// of this abstract class must define this method so new models
+    //    /// can be created from the training data.
+    //    /// </summary>
+    //    protected override SupportVectorMachine<TKernel, TInput> Create(int inputs, TKernel kernel)
+    //    {
+    //        return new SupportVectorMachine<TKernel, TInput>(inputs, kernel);
+    //    }
+    //}
+
+    ///// <summary>
+    /////   Base class for linear coordinate descent learning algorithm.
+    ///// </summary>
+    ///// 
+    //public abstract class BaseLinearCoordinateDescent<TModel, TKernel, TInput> :
+    //    BaseSupportVectorClassification<TModel, TKernel, TInput>
+    //    where TModel : SupportVectorMachine<TKernel, TInput>
+    //    where TKernel : struct, ILinear<TInput>
+    //    where TInput : ICloneable, IList
+
+        /// <summary>
+        ///   Base class for linear coordinate descent learning algorithm.
+        /// </summary>
+        /// 
+        public abstract class BaseLinearCoordinateDescent<TModel, TKernel> :
+        BaseSupportVectorClassification<TModel, TKernel, double[]>
+        where TModel : SupportVectorMachine<TKernel, double[]>
+        where TKernel : ILinear
     {
 
         double eps = 0.1;
@@ -108,29 +243,13 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         private double[] bias;
         private int biasIndex;
 
-
         /// <summary>
         ///   Constructs a new coordinate descent algorithm for L1-loss and L2-loss SVM dual problems.
         /// </summary>
         /// 
-        /// <param name="machine">A support vector machine.</param>
-        /// <param name="inputs">The input data points as row vectors.</param>
-        /// <param name="outputs">The output label for each input point. Values must be either -1 or +1.</param>
-        /// 
-        public LinearCoordinateDescent(SupportVectorMachine machine, double[][] inputs, int[] outputs)
-            : base(machine, inputs, outputs)
+        public BaseLinearCoordinateDescent()
         {
-            int samples = inputs.Length;
-            int dimension = inputs[0].Length;
 
-            if (!IsLinear)
-                throw new ArgumentException("Only linear machines are supported.", "machine");
-
-            // Lagrange multipliers
-            this.alpha = new double[samples];
-            this.weights = new double[dimension + 1];
-            this.bias = new double[samples];
-            this.biasIndex = dimension;
         }
 
         /// <summary>
@@ -164,16 +283,21 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         ///   Runs the learning algorithm.
         /// </summary>
         /// 
-        /// <param name="token">A token to stop processing when requested.</param>
-        /// <param name="c">The complexity for each sample.</param>
-        /// 
-        protected override void Run(CancellationToken token, double[] c)
+        protected override void InnerRun()
         {
-            double[] w = weights;
-            double[][] x = Inputs;
-            int[] y = Outputs;
+            int samples = Inputs.Length;
+            int dimension = Inputs[0].Length;
 
-            var random = Accord.Math.Tools.Random;
+            // Lagrange multipliers
+            this.alpha = new double[samples];
+            this.weights = new double[dimension + 1];
+            this.bias = new double[samples];
+            this.biasIndex = dimension;
+
+            double[] w = weights;
+
+
+            var random = Accord.Math.Random.Generator.Random;
 
             // Lagrange multipliers
             Array.Clear(alpha, 0, alpha.Length);
@@ -193,6 +317,9 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             double loss_old = 0, loss_new;
             double appxcond, cond;
 
+            double[] c = C;
+            double[][] x = Inputs;
+            int[] y = Outputs;
             int[] index = new int[w.Length];
             double[] b = new double[x.Length]; // b = 1-ywTx
             double[] xj_sq = new double[w.Length];
@@ -221,8 +348,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                 {
                     for (int i = 0; i < x.Length; i++)
                     {
-                        x[i][j] *= y[i]; // x->value stores yi*xij
-                        double val = x[i][j];
+                        double val = x[i][j] * y[i];
                         b[i] -= w[j] * val;
                         xj_sq[j] += c[i] * val * val;
                     }
@@ -231,6 +357,9 @@ namespace Accord.MachineLearning.VectorMachines.Learning
 
             while (iter < max_iter)
             {
+                if (Token.IsCancellationRequested)
+                    break;
+
                 Gmax_new = 0;
                 Gnorm1_new = 0;
                 int j;
@@ -262,7 +391,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                             }
                             else
                             {
-                                double val = x[i][j];
+                                double val = x[i][j] * y[i];
                                 double tmp = c[i] * val;
                                 G_loss -= tmp * b[i];
                                 H += tmp * val;
@@ -346,7 +475,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                             else
                             {
                                 for (int i = 0; i < b.Length; i++)
-                                    b[i] += d_diff * x[i][j];
+                                    b[i] += d_diff * x[i][j] * y[i];
                             }
 
                             break;
@@ -378,7 +507,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                                     if (b[i] > 0)
                                         loss_old += c[i] * b[i] * b[i];
 
-                                    double b_new = b[i] + d_diff * x[i][j];
+                                    double b_new = b[i] + d_diff * x[i][j]* y[i];
 
                                     b[i] = b_new;
 
@@ -407,7 +536,7 @@ namespace Accord.MachineLearning.VectorMachines.Learning
                             {
                                 for (int i = 0; i < x.Length; i++)
                                 {
-                                    double b_new = b[i] + d_diff * x[i][j];
+                                    double b_new = b[i] + d_diff * x[i][j]* y[i];
                                     b[i] = b_new;
 
                                     if (b_new > 0)
@@ -492,16 +621,10 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             int nnz = 0;
             for (int j = 0; j < w.Length; j++)
             {
-
                 if (j == biasIndex)
                 {
                     for (int i = 0; i < x.Length; i++)
                         bias[i] *= y[i]; // restore x->value
-                }
-                else
-                {
-                    for (int i = 0; i < x.Length; i++)
-                        x[i][j] *= y[i]; // restore x->value
                 }
 
                 if (w[j] != 0)
@@ -520,11 +643,26 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             Debug.WriteLine("Objective value = " + v);
             Debug.WriteLine("#nonzeros/#features = " + nnz + "/" + w.Length);
 
-            Machine.Weights = new double[Machine.Inputs];
-            for (int i = 0; i < Machine.Weights.Length; i++)
-                Machine.Weights[i] = w[i];
-            Machine.Threshold = w[biasIndex];
+            Model.SupportVectors = new[] { w.First(Model.NumberOfInputs) };
+            Model.Weights = new[] { 1.0 };
+            Model.Threshold = w[biasIndex];
         }
 
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        [Obsolete()]
+        protected BaseLinearCoordinateDescent(ISupportVectorMachine<double[]> model, double[][] input, int[] output)
+            : base(model, input, output)
+        {
+        }
+
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        protected BaseLinearCoordinateDescent(TModel model, double[][] input, int[] output)
+            : base(model, input, output)
+        {
+        }
     }
 }

@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 using Accord.Math;
 using System.Drawing.Drawing2D;
 
-namespace Gestures.SVMs
+namespace SampleApp
 {
     [Serializable]
     public class Sequence : ICloneable
@@ -106,7 +106,7 @@ namespace Gestures.SVMs
             {
                 int x = (int)sequence[i].X - xmin;
                 int y = (int)sequence[i].Y - ymin;
-                int p = (int)Accord.Math.Tools.Scale(0, sequence.Length, 0, 255, i);
+                int p = (int)Vector.Scale(0, sequence.Length, 0, 255, i);
 
                 int prevX = (int)sequence[i - 1].X - xmin;
                 int prevY = (int)sequence[i - 1].Y - ymin;

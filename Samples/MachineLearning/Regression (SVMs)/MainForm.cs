@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,15 @@ using Accord.MachineLearning.VectorMachines;
 using Accord.MachineLearning.VectorMachines.Learning;
 using Accord.Math;
 using Accord.Statistics.Kernels;
-using AForge;
 using Components;
 using ZedGraph;
 
-namespace Regression.SVMs
+namespace SampleApp
 {
     public partial class MainForm : Form
     {
 
-        KernelSupportVectorMachine svm;
+        SupportVectorMachine<IKernel> svm;
 
         string[] columnNames;
 
@@ -70,9 +69,6 @@ namespace Regression.SVMs
 
 
 
-
-
-
         private void btnCreate_Click(object sender, EventArgs e)
         {
             if (dgvLearningSource.DataSource == null)
@@ -87,10 +83,10 @@ namespace Regression.SVMs
 
 
             // Creates a matrix from the entire source data table
-            double[,] table = (dgvLearningSource.DataSource as DataTable).ToMatrix(out columnNames);
+            double[][] table = (dgvLearningSource.DataSource as DataTable).ToArray(out columnNames);
 
-            // Get only the input vector values (first two columns)
-            double[][] inputs = table.GetColumns(0).ToArray();
+            // Get only the input vector values (first column)
+            double[][] inputs = table.GetColumns(0);
 
             // Get only the outputs (last column)
             double[] outputs = table.GetColumn(1);
@@ -99,25 +95,21 @@ namespace Regression.SVMs
             // Create the specified Kernel
             IKernel kernel = createKernel();
 
-
-            // Create the Support Vector Machine for 1 input variable
-            svm = new KernelSupportVectorMachine(kernel, inputs: 1);
-
-            // Creates a new instance of the SMO for regression learning algorithm
-            var smo = new SequentialMinimalOptimizationRegression(svm, inputs, outputs)
+            // Creates a new SMO for regression learning algorithm
+            var teacher = new SequentialMinimalOptimizationRegression()
             {
                 // Set learning parameters
                 Complexity = (double)numC.Value,
                 Tolerance = (double)numT.Value,
-                Epsilon = (double)numEpsilon.Value
+                Epsilon = (double)numEpsilon.Value,
+                Kernel = kernel
             };
-
 
 
             try
             {
-                // Run
-                double error = smo.Run();
+                // Use the teacher to create a machine
+                svm = teacher.Learn(inputs, outputs);
 
                 lbStatus.Text = "Training complete!";
             }
@@ -148,7 +140,7 @@ namespace Regression.SVMs
 
 
             // Show the support vector labels on the scatter plot
-            double[] supportVectorLabels = new double[svm.SupportVectors.Length];
+            var supportVectorLabels = new double[svm.SupportVectors.Length];
             for (int i = 0; i < supportVectorLabels.Length; i++)
             {
                 int j = inputs.Find(sv => sv == svm.SupportVectors[i])[0];
@@ -157,18 +149,17 @@ namespace Regression.SVMs
 
             double[][] graph = svm.SupportVectors.InsertColumn(supportVectorLabels);
 
-            CreateScatterplot(graphSupportVectors, graph.ToMatrix());
+            CreateScatterplot(graphSupportVectors, graph);
 
 
 
             // Get the ranges for each variable (X and Y)
-            DoubleRange range = Matrix.Range(table.GetColumn(0));
+            DoubleRange range = table.GetColumn(0).GetRange();
 
-            double[][] map = Matrix.Interval(range, 0.05).ToArray();
+            double[][] map = Vector.Interval(range, 0.05).ToJagged();
 
             // Classify each point in the Cartesian coordinate system
-            double[] result = map.Apply(svm.Compute);
-            double[,] surface = map.ToMatrix().InsertColumn(result);
+            double[][] surface = map.InsertColumn(svm.Score(map));
 
             CreateScatterplot(zedGraphControl2, surface);
         }
@@ -188,20 +179,18 @@ namespace Regression.SVMs
 
 
             // Extract the first columns (X)
-            double[][] inputs = table.GetColumns(0).ToArray();
+            double[][] inputs = table.GetColumns(0).ToJagged();
 
             // Extract the expected output values
             double[] expected = table.GetColumn(1);
 
             // Compute the actual machine outputs
-            var output = new double[expected.Length];
-            for (int i = 0; i < expected.Length; i++)
-                output[i] = svm.Compute(inputs[i]);
+            double[] output = svm.Score(inputs);
 
 
             // Compute R² and Sum-of-squares error
             double rSquared = Accord.Statistics.Tools.Determination(output, expected);
-            double error = expected.Subtract(output).ElementwisePower(2).Sum() / output.Length;
+            double error = Elementwise.Pow(expected.Subtract(output), 2).Sum() / output.Length;
 
 
             // Anonymous magic! :D
@@ -222,7 +211,7 @@ namespace Regression.SVMs
         private IKernel createKernel()
         {
             if (rbGaussian.Checked)
-                return new Gaussian((double)numSigma.Value);
+                return new Accord.Statistics.Kernels.Gaussian((double)numSigma.Value);
 
             if (rbPolynomial.Checked)
             {
@@ -248,7 +237,7 @@ namespace Regression.SVMs
             double[,] sourceMatrix = source.ToMatrix(out columnNames);
 
             // Get only the input vector values (in the first two columns)
-            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToArray();
+            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToJagged();
 
             DoubleRange range; // valid range will be returned as an out parameter
             Gaussian gaussian = Gaussian.Estimate(inputs, inputs.Length, out range);
@@ -264,7 +253,7 @@ namespace Regression.SVMs
             double[,] sourceMatrix = source.ToMatrix(out columnNames);
 
             // Get only the input vector values (in the first two columns)
-            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToArray();
+            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToJagged();
 
             DoubleRange range; // valid range will be returned as an out parameter
             var laplacian = Laplacian.Estimate(inputs, inputs.Length, out range);
@@ -280,7 +269,7 @@ namespace Regression.SVMs
             double[,] sourceMatrix = source.ToMatrix(out columnNames);
 
             // Get only the input vector values (in the first two columns)
-            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToArray();
+            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToJagged();
 
             DoubleRange range; // valid range will be returned as an out parameter
             var sigmoid = Sigmoid.Estimate(inputs, inputs.Length, out range);
@@ -300,12 +289,12 @@ namespace Regression.SVMs
             double[,] sourceMatrix = source.ToMatrix(out columnNames);
 
             // Get only the input vector values (in the first two columns)
-            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToArray();
+            double[][] inputs = sourceMatrix.GetColumns(0, 1).ToJagged();
 
             IKernel kernel = createKernel();
 
             // Estimate a suitable value for SVM's complexity parameter C
-            double c = SequentialMinimalOptimization.EstimateComplexity(kernel, inputs);
+            double c = kernel.EstimateComplexity(inputs);
 
             numC.Value = (decimal)c;
         }
@@ -332,9 +321,7 @@ namespace Regression.SVMs
                         this.dgvLearningSource.DataSource = tableSource;
                         this.dgvTestingSource.DataSource = tableSource.Copy();
 
-                        double[,] sourceMatrix = tableSource.ToMatrix(out columnNames);
-
-                        CreateScatterplot(graphInput, sourceMatrix);
+                        CreateScatterplot(graphInput, tableSource.ToArray(out columnNames));
                     }
                 }
             }
@@ -342,7 +329,7 @@ namespace Regression.SVMs
 
 
 
-        public void CreateScatterplot(ZedGraphControl zgc, double[,] graph)
+        public void CreateScatterplot(ZedGraphControl zgc, double[][] graph)
         {
             GraphPane myPane = zgc.GraphPane;
             myPane.CurveList.Clear();
@@ -354,9 +341,9 @@ namespace Regression.SVMs
 
 
             // Regression problem
-            PointPairList list1 = new PointPairList();
-            for (int i = 0; i < graph.GetLength(0); i++)
-                list1.Add(graph[i, 0], graph[i, 1]);
+            var list1 = new PointPairList();
+            for (int i = 0; i < graph.Length; i++)
+                list1.Add(graph[i][0], graph[i][1]);
 
             // Add the curve
             LineItem myCurve = myPane.AddCurve("Y", list1, Color.Blue, SymbolType.Diamond);

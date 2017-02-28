@@ -20,7 +20,7 @@
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 
-namespace Accord.Statistics.Distributions.Univariate.Continuous
+namespace Accord.Statistics.Distributions.Univariate
 {
     using System;
     using Accord.Math;
@@ -215,7 +215,7 @@ namespace Accord.Statistics.Distributions.Univariate.Continuous
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.DoubleRange" /> containing
+        ///   A <see cref="DoubleRange" /> containing
         ///   the support interval for this distribution.
         /// </value>
         /// 

@@ -2,7 +2,7 @@
 // AForge.NET Framework
 // http://www.aforgenet.com/framework/
 //
-// Copyright © AForge.NET, 2009-2011
+// Copyright © AForge.NET, 2009-2017
 // contacts@aforgenet.com
 //
 
@@ -14,8 +14,8 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 
-using AForge.Video;
-using AForge.Video.DirectShow;
+using Accord.Video;
+using Accord.Video.DirectShow;
 
 namespace SampleApp
 {

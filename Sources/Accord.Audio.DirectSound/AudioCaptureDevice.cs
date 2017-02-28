@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -301,10 +301,6 @@ namespace Accord.DirectSound
         {
             if (thread == null)
             {
-                // check source
-                if (device == Guid.Empty)
-                    throw new ArgumentException("Audio source is not specified");
-
                 framesReceived = 0;
                 bytesReceived = 0;
 

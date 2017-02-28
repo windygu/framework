@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ namespace Accord.Math.Optimization
     using System;
     using Accord.Math;
     using Accord.Math.Decompositions;
+    using System.Threading;
 
     /// <summary>
     ///   Gauss-Newton algorithm for solving Least-Squares problems.
@@ -38,6 +39,8 @@ namespace Accord.Math.Optimization
     /// 
     public class GaussNewton : ILeastSquaresMethod
     {
+        [NonSerialized]
+        CancellationToken token = new CancellationToken();
 
         private int numberOfParameters;
 
@@ -75,6 +78,17 @@ namespace Accord.Math.Optimization
         /// </value>
         /// 
         public LeastSquaresGradientFunction Gradient { get; set; }
+
+        /// <summary>
+        ///   Gets or sets a cancellation token that can be used to
+        ///   stop the learning algorithm while it is running.
+        /// </summary>
+        /// 
+        public CancellationToken Token
+        {
+            get { return token; }
+            set { token = value; }
+        }
 
         /// <summary>
         ///   Gets the number of variables (free parameters) in the optimization problem.
@@ -162,6 +176,12 @@ namespace Accord.Math.Optimization
             get { return decomposition.Inverse().Diagonal().Sqrt(); }
         }
 
+        /// <summary>
+        /// Gets the value at the solution found. This should be
+        /// the minimum value found for the objective function.
+        /// </summary>
+        /// 
+        public double Value { get; set; }
 
         /// <summary>
         ///   Initializes a new instance of the <see cref="GaussNewton"/> class.
@@ -203,21 +223,24 @@ namespace Accord.Math.Optimization
             for (int i = 0; i < inputs.Length; i++)
                 errors[i] = outputs[i] - Function(weights, inputs[i]);
 
-            double[] g = new double[numberOfParameters];
+            var g = new double[numberOfParameters];
             for (int i = 0; i < inputs.Length; i++)
             {
                 Gradient(weights, inputs[i], result: g);
 
                 for (int j = 0; j < gradient.Length; j++)
                     jacobian[i, j] = -g[j];
+
+                if (Token.IsCancellationRequested)
+                    break;
             }
 
 
             // Compute error gradient using Jacobian
-            jacobian.TransposeAndMultiply(errors, result: gradient);
+            jacobian.TransposeAndDot(errors, result: gradient);
 
             // Compute Quasi-Hessian Matrix approximation
-            jacobian.TransposeAndMultiply(jacobian, result: hessian);
+            jacobian.TransposeAndDot(jacobian, result: hessian);
 
             decomposition = new SingularValueDecomposition(hessian,
                 computeLeftSingularVectors: true, computeRightSingularVectors: true, autoTranspose: true);
@@ -227,7 +250,7 @@ namespace Accord.Math.Optimization
             for (int i = 0; i < deltas.Length; i++)
                 weights[i] -= deltas[i];
 
-            return ComputeError(inputs, outputs);
+            return Value = ComputeError(inputs, outputs);
         }
 
 

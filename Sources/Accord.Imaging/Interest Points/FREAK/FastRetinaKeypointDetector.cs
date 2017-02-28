@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -22,9 +22,8 @@
 
 namespace Accord.Imaging
 {
+    using Accord.Imaging.Filters;
     using AForge;
-    using AForge.Imaging;
-    using AForge.Imaging.Filters;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -126,7 +125,10 @@ namespace Accord.Imaging
     /// <seealso cref="LocalBinaryPattern"/>
     /// 
     [Serializable]
-    public class FastRetinaKeypointDetector : IFeatureDetector<FastRetinaKeypoint, byte[]>
+    public class FastRetinaKeypointDetector :
+        IFeatureDetector<IFeatureDescriptor<byte[]>, byte[]>,
+        IFeatureDetector<FastRetinaKeypoint, byte[]>,
+        IFeatureDetector<FastRetinaKeypoint, double[]>
     {
 
         private FastRetinaKeypointDescriptorType featureType = FastRetinaKeypointDescriptorType.Standard;
@@ -283,7 +285,7 @@ namespace Accord.Imaging
             // 1. Extract corners points from the image.
             List<IntPoint> corners = Detector.ProcessImage(grayImage);
 
-            List<FastRetinaKeypoint> features = new List<FastRetinaKeypoint>();
+            var features = new List<FastRetinaKeypoint>();
             for (int i = 0; i < corners.Count; i++)
                 features.Add(new FastRetinaKeypoint(corners[i].X, corners[i].Y));
 
@@ -348,24 +350,18 @@ namespace Accord.Imaging
             }
 
             // lock source image
-            BitmapData imageData = image.LockBits(
-                new Rectangle(0, 0, image.Width, image.Height),
-                ImageLockMode.ReadOnly, image.PixelFormat);
-
-            List<FastRetinaKeypoint> corners;
+            BitmapData imageData = image.LockBits(ImageLockMode.ReadOnly);
 
             try
             {
                 // process the image
-                corners = ProcessImage(new UnmanagedImage(imageData));
+                return ProcessImage(new UnmanagedImage(imageData));
             }
             finally
             {
                 // unlock image
                 image.UnlockBits(imageData);
             }
-
-            return corners;
         }
 
         /// <summary>
@@ -383,6 +379,107 @@ namespace Accord.Imaging
         public List<FastRetinaKeypoint> ProcessImage(BitmapData imageData)
         {
             return ProcessImage(new UnmanagedImage(imageData));
+        }
+
+
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, byte[]>.ProcessImage(Bitmap image)
+        {
+            return ProcessImage(image);
+        }
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, byte[]>.ProcessImage(BitmapData imageData)
+        {
+            return ProcessImage(imageData);
+        }
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, byte[]>.ProcessImage(UnmanagedImage image)
+        {
+            return ProcessImage(image);
+        }
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, double[]>.ProcessImage(Bitmap image)
+        {
+            return ProcessImage(image);
+        }
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, double[]>.ProcessImage(BitmapData imageData)
+        {
+            return ProcessImage(imageData);
+        }
+
+        IEnumerable<FastRetinaKeypoint> IFeatureDetector<FastRetinaKeypoint, double[]>.ProcessImage(UnmanagedImage image)
+        {
+            return ProcessImage(image);
+        }
+
+        IEnumerable<IFeatureDescriptor<byte[]>> IFeatureDetector<IFeatureDescriptor<byte[]>, byte[]>.ProcessImage(Bitmap image)
+        {
+            return ProcessImage(image).ConvertAll(x => (IFeatureDescriptor<byte[]>)x);
+        }
+
+        IEnumerable<IFeatureDescriptor<byte[]>> IFeatureDetector<IFeatureDescriptor<byte[]>, byte[]>.ProcessImage(BitmapData imageData)
+        {
+            return ProcessImage(imageData).ConvertAll(x => (IFeatureDescriptor<byte[]>)x);
+        }
+
+        IEnumerable<IFeatureDescriptor<byte[]>> IFeatureDetector<IFeatureDescriptor<byte[]>, byte[]>.ProcessImage(UnmanagedImage image)
+        {
+            return ProcessImage(image).ConvertAll(x => (IFeatureDescriptor<byte[]>)x);
+        }
+
+        /// <summary>
+        ///   Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A new object that is a copy of this instance.
+        /// </returns>
+        /// 
+        public object Clone()
+        {
+            var clone = new FastRetinaKeypointDetector();
+            clone.featureType = featureType;
+            clone.octaves = octaves;
+            clone.scale = scale;
+
+            if (descriptor != null)
+            {
+                // clone.descriptor = (FastRetinaKeypointDescriptor)descriptor.Clone();
+                // clone.grayImage = grayImage.Clone();
+                // clone.integral = (IntegralImage)integral.Clone();
+                // clone.pattern = (FastRetinaKeypointPattern)pattern.Clone();
+            }
+            
+            return clone;
+        }
+
+        /// <summary>
+        ///   Performs application-defined tasks associated with freeing, releasing, 
+        ///   or resetting unmanaged resources.
+        /// </summary>
+        /// 
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        ///   Releases unmanaged and - optionally - managed resources.
+        /// </summary>
+        /// 
+        /// <param name="disposing"><c>true</c> to release both managed and unmanaged
+        ///   resources; <c>false</c> to release only unmanaged resources.</param>
+        /// 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // free managed resources
+            }
+
+            // free native resources if there are any.
         }
 
     }

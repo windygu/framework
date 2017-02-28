@@ -2,54 +2,37 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{944A7FDE-890A-45CE-A958-AAE6553E2E24}</ProjectGuid>
-    <RootNamespace>Accord.Tests.Math</RootNamespace>
-    <AssemblyName>Accord.Tests.Math</AssemblyName>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <FileAlignment>512</FileAlignment>
-    <OldToolsVersion>3.5</OldToolsVersion>
-    <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
-    <TargetFrameworkProfile />
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>Accord.snk</AssemblyOriginatorKeyFile>
+    <RootNamespace>Accord.Tests.Extras.MachineLearning.GPL</RootNamespace>
+    <AssemblyName>Accord.Tests.Extras.MachineLearning.GPL</AssemblyName>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET35|AnyCPU' ">
-    <OutputPath>bin\Release\net35</OutputPath>
-    <DefineConstants>TRACE;NET35</DefineConstants>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET40|AnyCPU' ">
-    <OutputPath>bin\Release\net40</OutputPath>
-    <DefineConstants>TRACE;NET40</DefineConstants>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET45|AnyCPU' ">
-    <OutputPath>bin\Release\net45</OutputPath>
-    <DefineConstants>TRACE;NET45</DefineConstants>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
+  <Import Project="$(SolutionDir)..\Unit Tests\Accord.Tests.targets" />  
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+		<DebugType>Full</DebugType>
+		<Optimize>False</Optimize>
+		<CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+		<OutputPath>$(SolutionDir)..\Debug\</OutputPath>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net35|AnyCPU' ">
+		<DefineConstants>TRACE;NET35</DefineConstants>
+		<TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net40|AnyCPU' ">
+		<DefineConstants>TRACE;NET40</DefineConstants>
+		<TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net45|AnyCPU'">
+		<DefineConstants>TRACE;NET45</DefineConstants>
+		<TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net46|AnyCPU'">
+		<DefineConstants>TRACE;NET46</DefineConstants>
+		<TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'mono|AnyCPU'">
+		<DefineConstants>TRACE;MONO</DefineConstants>
+		<TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+	</PropertyGroup>
   <ItemGroup>
     <Reference Include="nunit.framework">
       <HintPath>..\..\..\Externals\NUnit\nunit.framework.dll</HintPath>

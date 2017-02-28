@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -145,6 +145,7 @@ namespace Accord.Tests.Statistics
         }
 
         [Test]
+        [Category("Office")]
         public void ApplyTest4()
         {
             string path = @"Resources\intrusion.xls";
@@ -232,7 +233,7 @@ namespace Accord.Tests.Statistics
             table.Rows.Add(3, 5, 7);
             table.Rows.Add(3, 6, 9);
 
-            // ok, so values 1,2,3 are in column 1
+            // values 1,2,3 are in column 1
             // values 2,3,4,5,6 in column 2
             // values 3,5,6,7,8,9,10 in column 3
             var codeBook = new Codification(table);
@@ -246,9 +247,9 @@ namespace Accord.Tests.Statistics
             Matrix.IsEqual(new int[] { 2, 3, 2 }, codeBook.Translate(colNames, new[] { "3", "5", "7" }));
             Matrix.IsEqual(new int[] { 2, 4, 6 }, codeBook.Translate(colNames, new[] { "3", "6", "9" }));
 
-            Matrix.IsEqual(new int[] { 2 }, codeBook.Translate(colNames.Submatrix(1), new[] { "3" }));
-            Matrix.IsEqual(new int[] { 2, 4 }, codeBook.Translate(colNames.Submatrix(2), new[] { "3", "6" }));
-            Matrix.IsEqual(new int[] { 2, 4, 6 }, codeBook.Translate(colNames.Submatrix(3), new[] { "3", "6", "9" }));
+            Matrix.IsEqual(new int[] { 2 }, codeBook.Translate(colNames.First(1), new[] { "3" }));
+            Matrix.IsEqual(new int[] { 2, 4 }, codeBook.Translate(colNames.First(2), new[] { "3", "6" }));
+            Matrix.IsEqual(new int[] { 2, 4, 6 }, codeBook.Translate(colNames.First(3), new[] { "3", "6", "9" }));
 
             bool thrown = false;
 
@@ -284,7 +285,7 @@ namespace Accord.Tests.Statistics
             table.Rows.Add(3, 5, 7);
             table.Rows.Add(3, 6, 9);
 
-            // ok, so values 1,2,3 are in column 1
+            // values 1,2,3 are in column 1
             // values 2,3,4,5,6 in column 2
             // values 3,5,6,7,8,9,10 in column 3
             var codeBook = new Codification(table);
@@ -308,6 +309,38 @@ namespace Accord.Tests.Statistics
             catch (Exception) { thrown = true; }
 
             Assert.IsTrue(thrown);
+        }
+
+        [Test]
+        [Category("Serialization")]
+        public void SerializationTest()
+        {
+            string[] names = { "child", "adult", "elder" };
+
+            Codification codebook = new Codification("Label", names);
+
+            Assert.AreEqual(0, codebook.Translate("Label", "child"));
+            Assert.AreEqual(1, codebook.Translate("Label", "adult"));
+            Assert.AreEqual(2, codebook.Translate("Label", "elder"));
+            Assert.AreEqual("child", codebook.Translate("Label", 0));
+            Assert.AreEqual("adult", codebook.Translate("Label", 1));
+            Assert.AreEqual("elder", codebook.Translate("Label", 2));
+
+
+            byte[] bytes = codebook.Save();
+
+            Codification reloaded = Serializer.Load<Codification>(bytes);
+
+            Assert.AreEqual(codebook.Active, reloaded.Active);
+            Assert.AreEqual(codebook.Columns.Count, reloaded.Columns.Count);
+            Assert.AreEqual(codebook.Columns[0].ColumnName, reloaded.Columns[0].ColumnName);
+
+            Assert.AreEqual(0, reloaded.Translate("Label", "child"));
+            Assert.AreEqual(1, reloaded.Translate("Label", "adult"));
+            Assert.AreEqual(2, reloaded.Translate("Label", "elder"));
+            Assert.AreEqual("child", reloaded.Translate("Label", 0));
+            Assert.AreEqual("adult", reloaded.Translate("Label", 1));
+            Assert.AreEqual("elder", reloaded.Translate("Label", 2));
         }
 
     }

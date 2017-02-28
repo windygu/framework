@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -32,23 +32,6 @@ namespace Accord.Tests.Statistics
     [TestFixture]
     public class BetaDistributionTest
     {
-
-
-        private TestContext testContextInstance;
-
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
-
-
 
         [Test]
         public void BetaDistributionConstructorTest()
@@ -362,7 +345,7 @@ namespace Accord.Tests.Statistics
         {
             Accord.Math.Tools.SetupGenerator(0);
 
-            int n = 100000;
+            int n = 1000000;
 
             double[] samples = BetaDistribution
                 .Random(alpha: 2, beta: 3,  samples: n);
@@ -372,10 +355,28 @@ namespace Accord.Tests.Statistics
             var actual = BetaDistribution.Estimate(samples,
                 new BetaOptions { Method = BetaEstimationMethod.MaximumLikelihood });
 
-            Assert.AreEqual(2, actual.Alpha, 0.015);
-            Assert.AreEqual(3, actual.Beta, 0.03);
+            Assert.AreEqual(2, actual.Alpha, 0.0015);
+            Assert.AreEqual(3, actual.Beta, 0.005);
         }
 
+        [Test]
+        public void BetaGenerateTest3()
+        {
+            Accord.Math.Tools.SetupGenerator(0);
+
+            int n = 1000000;
+
+            double[] samples = BetaDistribution
+                .Random(alpha: 0.4, beta: 0.2, samples: n);
+
+            Assert.AreEqual(n, samples.Length);
+
+            var actual = BetaDistribution.Estimate(samples,
+                new BetaOptions { Method = BetaEstimationMethod.MaximumLikelihood });
+
+            Assert.AreEqual(0.4, actual.Alpha, 0.005);
+            Assert.AreEqual(0.2, actual.Beta, 0.003);
+        }
 
         private static double[] samples =
         {

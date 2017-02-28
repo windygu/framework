@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@
 
 namespace Accord.Statistics.Models.Fields
 {
+    using Accord.MachineLearning;
     using Accord.Math;
     using Accord.Statistics.Models.Fields.Functions;
     using Accord.Statistics.Models.Fields.Learning;
@@ -246,13 +247,15 @@ namespace Accord.Statistics.Models.Fields
     /// <see cref="HiddenResilientGradientLearning{T}"/>
     /// 
     [Serializable]
-    public class HiddenConditionalRandomField<T> : ICloneable
+    public class HiddenConditionalRandomField<T> : MulticlassClassifierBase<T[]>,
+        ICloneable
     {
 
         /// <summary>
         ///   Gets the number of outputs assumed by the model.
         /// </summary>
         /// 
+        [Obsolete("Please use NumberOfOutputs instead.")]
         public int Outputs { get { return Function.Outputs; } }
 
         /// <summary>
@@ -272,23 +275,31 @@ namespace Accord.Statistics.Models.Fields
         public HiddenConditionalRandomField(IPotentialFunction<T> function)
         {
             this.Function = function;
+            this.NumberOfOutputs = function.Outputs;
         }
 
         /// <summary>
         ///   Computes the most likely output for the given observations.
         /// </summary>
         /// 
+        [Obsolete("Please use the Decide() method instead.")]
         public int Compute(T[] observations)
         {
             double[] logLikelihoods;
-            return Compute(observations, out logLikelihoods);
+            return compute(observations, out logLikelihoods);
         }
 
         /// <summary>
         ///   Computes the most likely output for the given observations.
         /// </summary>
         /// 
+        [Obsolete("Please use the Decide() method instead.")]
         public int Compute(T[] observations, out double[] logLikelihoods)
+        {
+            return compute(observations, out logLikelihoods);
+        }
+
+        private int compute(T[] observations, out double[] logLikelihoods)
         {
             // Compute log-likelihoods for all possible outputs
             logLikelihoods = computeLogLikelihood(observations);
@@ -317,10 +328,11 @@ namespace Accord.Statistics.Models.Fields
         ///   Computes the most likely output for the given observations.
         /// </summary>
         /// 
+        [Obsolete("Please use the Decide() method instead.")]
         public int Compute(T[] observations, out double logLikelihood)
         {
             double[] logLikelihoods;
-            int i = Compute(observations, out logLikelihoods);
+            int i = compute(observations, out logLikelihoods);
             logLikelihood = logLikelihoods[i];
             return i;
         }
@@ -448,10 +460,10 @@ namespace Accord.Statistics.Models.Fields
 
             double logZxy = logLikelihoods[output];
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(logZx));
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(logZxy));
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihoods[output]));
-            // System.Diagnostics.Debug.Assert(!Double.IsInfinity(logZx));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(logZx));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(logZxy));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihoods[output]));
+            // Accord.Diagnostics.Debug.Assert(!Double.IsInfinity(logZx));
 
             // Return the marginal
             if (logZx == logZxy)
@@ -503,7 +515,7 @@ namespace Accord.Statistics.Models.Fields
 
             double z = Math.Exp(logLikelihood);
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(z));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(z));
 
             return z;
         }
@@ -520,7 +532,7 @@ namespace Accord.Statistics.Models.Fields
 
             double z = logLikelihood;
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(z));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(z));
 
             return z;
         }
@@ -533,7 +545,7 @@ namespace Accord.Statistics.Models.Fields
         {
             double sum = 0;
 
-            for (int j = 0; j < Outputs; j++)
+            for (int j = 0; j < NumberOfOutputs; j++)
             {
                 double logLikelihood;
 
@@ -542,7 +554,7 @@ namespace Accord.Statistics.Models.Fields
                 sum += Math.Exp(logLikelihood);
             }
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(sum));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(sum));
 
             return sum;
         }
@@ -555,7 +567,7 @@ namespace Accord.Statistics.Models.Fields
         {
             double sum = 0;
 
-            for (int j = 0; j < Outputs; j++)
+            for (int j = 0; j < NumberOfOutputs; j++)
             {
                 double logLikelihood;
 
@@ -564,7 +576,7 @@ namespace Accord.Statistics.Models.Fields
                 sum += Math.Exp(logLikelihood);
             }
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(sum));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(sum));
 
             return Math.Log(sum);
         }
@@ -572,7 +584,7 @@ namespace Accord.Statistics.Models.Fields
 
         private double[] computeLogLikelihood(T[] observations)
         {
-            double[] logLikelihoods = new double[Outputs];
+            double[] logLikelihoods = new double[NumberOfOutputs];
 
 
 #if SERIAL || DEBUG  // For all possible outputs for the model,
@@ -591,7 +603,7 @@ namespace Accord.Statistics.Models.Fields
                 // Accumulate output's likelihood
                 logLikelihoods[y] = logLikelihood;
 
-                System.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihood));
+                Accord.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihood));
             }
 #if !(SERIAL || DEBUG)
 );
@@ -607,10 +619,10 @@ namespace Accord.Statistics.Models.Fields
         /// 
         /// <param name="stream">The stream to which the random field is to be serialized.</param>
         /// 
+        [Obsolete("Please use Accord.IO.Serializer.Save() instead.")]
         public void Save(Stream stream)
         {
-            BinaryFormatter b = new BinaryFormatter();
-            b.Serialize(stream, this);
+            Accord.IO.Serializer.Save(this, stream);
         }
 
         /// <summary>
@@ -619,9 +631,10 @@ namespace Accord.Statistics.Models.Fields
         /// 
         /// <param name="path">The stream to which the random field is to be serialized.</param>
         /// 
+        [Obsolete("Please use Accord.IO.Serializer.Save() instead.")]
         public void Save(string path)
         {
-            Save(new FileStream(path, FileMode.Create));
+            Accord.IO.Serializer.Save(this, path);
         }
 
         /// <summary>
@@ -632,10 +645,10 @@ namespace Accord.Statistics.Models.Fields
         /// 
         /// <returns>The deserialized random field.</returns>
         /// 
+        [Obsolete("Please use Accord.IO.Serializer.Load<HiddenConditionalRandomField<T>>() instead.")]
         public static HiddenConditionalRandomField<T> Load(Stream stream)
         {
-            BinaryFormatter b = new BinaryFormatter();
-            return (HiddenConditionalRandomField<T>)b.Deserialize(stream);
+            return Accord.IO.Serializer.Load<HiddenConditionalRandomField<T>>(stream);
         }
 
         /// <summary>
@@ -646,9 +659,10 @@ namespace Accord.Statistics.Models.Fields
         /// 
         /// <returns>The deserialized random field.</returns>
         /// 
+        [Obsolete("Please use Accord.IO.Serializer.Load<HiddenConditionalRandomField<T>>() instead.")]
         public static HiddenConditionalRandomField<T> Load(string path)
         {
-            return Load(new FileStream(path, FileMode.Open));
+            return Accord.IO.Serializer.Load<HiddenConditionalRandomField<T>>(path);
         }
 
         #region ICloneable Members
@@ -667,5 +681,20 @@ namespace Accord.Statistics.Models.Fields
         }
 
         #endregion
+
+        /// <summary>
+        /// Computes a class-label decision for a given <paramref name="input" />.
+        /// </summary>
+        /// <param name="input">The input vector that should be classified into
+        /// one of the <see cref="ITransform.NumberOfOutputs" /> possible classes.</param>
+        /// <returns>
+        /// A class-label that best described <paramref name="input" /> according
+        /// to this classifier.
+        /// </returns>
+        public override int Decide(T[] input)
+        {
+            double[] v;
+            return compute(input, out v);
+        }
     }
 }

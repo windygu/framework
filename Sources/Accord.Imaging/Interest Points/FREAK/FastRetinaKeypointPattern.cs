@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 // Copyright (c) 2011-2012 LTS2, EPFL
@@ -38,12 +38,13 @@ namespace Accord.Imaging
     using System;
     using System.Collections.Generic;
 
-    internal class FastRetinaKeypointPattern
+    internal class FastRetinaKeypointPattern : ICloneable
     {
 
         /// <summary>
         ///   Pattern scale resolution.
         /// </summary>
+        /// 
         public const int Scales = 64;
 
         /// <summary>
@@ -72,6 +73,7 @@ namespace Accord.Imaging
         public PatternPoint[] lookupTable;
 
         public int Octaves { get; private set; }
+
         public float Scale { get; private set; }
 
         public double step;
@@ -88,6 +90,11 @@ namespace Accord.Imaging
             this.Octaves = octaves;
             this.Scale = scale;
 
+            build(octaves, scale);
+        }
+
+        private void build(int octaves, float scale)
+        {
             lookupTable = new PatternPoint[Scales * Orientations * Points];
 
             double scaleStep = Math.Pow(2.0, (double)(octaves) / Scales);
@@ -103,7 +110,7 @@ namespace Accord.Imaging
 
             double unitSpace = ((bigR - smallR) / 21.0); // define spaces between concentric circles (from center to outer: 1,2,3,4,5,6)
 
-            double[] radius = 
+            double[] radius =
             {
                 bigR, bigR - 6 * unitSpace, // radii of the concentric circles (from outer to inner)
                 bigR - 11 * unitSpace, bigR - 15 * unitSpace,
@@ -111,9 +118,9 @@ namespace Accord.Imaging
                 smallR, 0.0
             };
 
-            double[] sigma = 
-            {         
-                radius[0]/2.0, radius[1]/2.0, 
+            double[] sigma =
+            {
+                radius[0]/2.0, radius[1]/2.0,
                 radius[2]/2.0, radius[3]/2.0,  // sigma of the pattern points (each group of 6 
                 radius[4]/2.0, radius[5]/2.0,  //  points on a concentric circle has same sigma)
                 radius[6]/2.0, radius[6]/2.0
@@ -240,7 +247,7 @@ namespace Accord.Imaging
         };
 
         static int[] CV_FREAK_DEF_PAIRS = // default pairs
-        { 
+        {
             404,431,818,511,181,52,311,874,774,543,719,230,417,205,11,
             560,149,265,39,306,165,857,250,8,61,15,55,717,44,412,
             592,134,761,695,660,782,625,487,549,516,271,665,762,392,178,
@@ -276,6 +283,19 @@ namespace Accord.Imaging
             325,408,229,28,304,191,189,110,126,486,211,547,533,70,215,
             670,249,36,581,389,605,331,518,442,822
         };
+
+        /// <summary>
+        ///   Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A new object that is a copy of this instance.
+        /// </returns>
+        /// 
+        public object Clone()
+        {
+            return new FastRetinaKeypointPattern(Octaves, Scale);
+        }
     }
 
 }

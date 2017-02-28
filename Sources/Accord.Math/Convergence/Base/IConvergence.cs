@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ namespace Accord.Math
         ///   performed by the iterative algorithm.
         /// </summary>
         /// 
-        int Iterations { get; set; }
+        int Iterations { get; set; } // TODO: Rename to MaxIterations
 
         /// <summary>
         ///   Gets or sets the watched value after the iteration.

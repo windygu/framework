@@ -16,8 +16,8 @@ using System.Text;
 using System.Windows.Forms;
 
 using AForge;
-using AForge.Imaging;
-using AForge.Imaging.Filters;
+using Accord.Imaging;
+using Accord.Imaging.Filters;
 
 namespace SampleApp
 {
@@ -57,12 +57,9 @@ namespace SampleApp
                 {
                     // load image
                     Bitmap tempImage = (Bitmap)Bitmap.FromFile(openFileDialog.FileName);
-                    Bitmap image = AForge.Imaging.Image.Clone(tempImage, PixelFormat.Format24bppRgb);
+                    Bitmap image = Accord.Imaging.Image.Clone(tempImage, PixelFormat.Format24bppRgb);
                     tempImage.Dispose();
 
-                    // format image
-                    AForge.Imaging.Image.FormatImage(ref image);
-                    
                     // lock the source image
                     BitmapData sourceData = image.LockBits(
                         new Rectangle(0, 0, image.Width, image.Height),

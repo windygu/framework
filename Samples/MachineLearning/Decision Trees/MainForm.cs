@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 //  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
+using Accord;
 using Accord.IO;
 using Accord.MachineLearning.DecisionTrees;
 using Accord.MachineLearning.DecisionTrees.Learning;
@@ -44,7 +45,7 @@ using System.IO;
 using System.Windows.Forms;
 using ZedGraph;
 
-namespace Classification.Trees
+namespace SampleApp
 {
     /// <summary>
     ///   Classification using Decision Trees.
@@ -95,7 +96,7 @@ namespace Classification.Trees
             double[,] table = (dgvLearningSource.DataSource as DataTable).ToMatrix(out columnNames);
 
             // Get only the input vector values (first two columns)
-            double[][] inputs = table.GetColumns(0, 1).ToArray();
+            double[][] inputs = table.GetColumns(0, 1).ToJagged();
 
             // Get only the output labels (last column)
             int[] outputs = table.GetColumn(2).ToInt32();
@@ -108,30 +109,26 @@ namespace Classification.Trees
                 new DecisionVariable("y", DecisionVariableKind.Continuous),
             };
 
-            // Create the discrete Decision tree
-            tree = new DecisionTree(variables, 2);
-
             // Create the C4.5 learning algorithm
-            C45Learning c45 = new C45Learning(tree);
+            var c45 = new C45Learning(variables);
 
             // Learn the decision tree using C4.5
-            double error = c45.Run(inputs, outputs);
+            tree = c45.Learn(inputs, outputs);
 
             // Show the learned tree in the view
             decisionTreeView1.TreeSource = tree;
 
 
             // Get the ranges for each variable (X and Y)
-            DoubleRange[] ranges = Matrix.Range(table, 0);
+            DoubleRange[] ranges = table.GetRange(0);
 
             // Generate a Cartesian coordinate system
-            double[][] map = Matrix.CartesianProduct(
-                Matrix.Interval(ranges[0], 0.05),
-                Matrix.Interval(ranges[1], 0.05));
+            double[][] map = Matrix.Cartesian(
+                Vector.Interval(ranges[0], 0.05),
+                Vector.Interval(ranges[1], 0.05));
 
             // Classify each point in the Cartesian coordinate system
-            double[] result = map.Apply(tree.Compute).ToDouble();
-            double[,] surface = map.ToMatrix().InsertColumn(result);
+            double[,] surface = map.ToMatrix().InsertColumn(tree.Decide(map));
 
             CreateScatterplot(zedGraphControl2, surface);
 
@@ -153,19 +150,17 @@ namespace Classification.Trees
 
 
             // Creates a matrix from the entire source data table
-            double[,] table = (dgvLearningSource.DataSource as DataTable).ToMatrix(out columnNames);
+            double[][] table = (dgvLearningSource.DataSource as DataTable).ToArray(out columnNames);
 
             // Get only the input vector values (first two columns)
-            double[][] inputs = table.GetColumns(0, 1).ToArray();
+            double[][] inputs = table.GetColumns(0, 1);
 
             // Get the expected output labels (last column)
             int[] expected = table.GetColumn(2).ToInt32();
 
 
             // Compute the actual tree outputs
-            int[] actual = new int[inputs.Length];
-            for (int i = 0; i < inputs.Length; i++)
-                actual[i] = tree.Compute(inputs[i]);
+            int[] actual = tree.Decide(inputs);
 
 
             // Use confusion matrix to compute some statistics.

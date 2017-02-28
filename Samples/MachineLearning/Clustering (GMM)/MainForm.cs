@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ using Accord.Math;
 using Accord.Statistics.Distributions.Multivariate;
 using ZedGraph;
 
-namespace Clustering.GMMs
+namespace SampleApp
 {
     /// <summary>
     ///   Clustering sample application. This application produces random data from
@@ -54,7 +54,7 @@ namespace Clustering.GMMs
 
         int k; // the number of clusters assumed present in the data
 
-        double[][] mixture; // the data points containing the mixture
+        double[][] observations; // the data points containing the mixture
 
         KMeans kmeans;
 
@@ -76,7 +76,7 @@ namespace Clustering.GMMs
             for (int i = 0; i < k; i++)
             {
                 // Create random centroid to place the Gaussian distribution
-                double[] mean = Matrix.Random(2, -6.0, +6.0);
+                double[] mean = Vector.Random(2, -6.0, +6.0);
 
                 // Create random covariance matrix for the distribution
                 double[,] covariance = Accord.Statistics.Tools.RandomCovariance(2, -5, 5);
@@ -84,15 +84,15 @@ namespace Clustering.GMMs
                 // Create the Gaussian distribution
                 var gaussian = new MultivariateNormalDistribution(mean, covariance);
 
-                int samples = Accord.Math.Tools.Random.Next(150, 250);
+                int samples = Accord.Math.Random.Generator.Random.Next(150, 250);
                 data[i] = gaussian.Generate(samples);
             }
 
             // Join the generated data
-            mixture = Matrix.Stack(data);
+            observations = Matrix.Stack(data);
 
             // Update the scatter plot
-            CreateScatterplot(graph, mixture, k);
+            CreateScatterplot(graph, observations, k);
 
             // Forget previous initialization
             kmeans = null;
@@ -105,16 +105,17 @@ namespace Clustering.GMMs
         private void btnCompute_Click(object sender, EventArgs e)
         {
             // Create a new Gaussian Mixture Model
-            GaussianMixtureModel gmm = new GaussianMixtureModel(k);
+            var gmm = new GaussianMixtureModel(k);
 
             // If available, initialize with k-means
-            if (kmeans != null) gmm.Initialize(kmeans);
+            if (kmeans != null) 
+                gmm.Initialize(kmeans);
 
             // Compute the model
-            gmm.Compute(mixture);
+            GaussianClusterCollection clustering = gmm.Learn(observations);
 
             // Classify all instances in mixture data
-            int[] classifications = gmm.Gaussians.Nearest(mixture);
+            int[] classifications = clustering.Decide(observations);
 
             // Draw the classifications
             updateGraph(classifications);
@@ -131,10 +132,11 @@ namespace Clustering.GMMs
             // K-Means clustering algorithm:
 
             kmeans = new KMeans(k);
-            kmeans.Compute(mixture);
+
+            KMeansClusterCollection clustering = kmeans.Learn(observations);
 
             // Classify all instances in mixture data
-            int[] classifications = kmeans.Clusters.Nearest(mixture);
+            int[] classifications = clustering.Decide(observations);
 
             // Draw the classifications
             updateGraph(classifications);
@@ -149,12 +151,12 @@ namespace Clustering.GMMs
             for (int i = 0; i < k + 1; i++)
                 graph.GraphPane.CurveList[i].Clear();
 
-            for (int j = 0; j < mixture.Length; j++)
+            for (int j = 0; j < observations.Length; j++)
             {
                 int c = classifications[j];
 
                 var curveList = graph.GraphPane.CurveList[c + 1];
-                double[] point = mixture[j];
+                double[] point = observations[j];
                 curveList.AddPoint(point[0], point[1]);
             }
 

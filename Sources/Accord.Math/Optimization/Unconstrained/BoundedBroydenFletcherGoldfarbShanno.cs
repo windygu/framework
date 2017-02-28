@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 // Copyright © Jorge Nocedal, 1990
@@ -188,8 +188,8 @@ namespace Accord.Math.Optimization
 
         /// <summary>
         ///   Gets the number of iterations performed in the last
-        ///   call to <see cref="IOptimizationMethod.Minimize()"/>
-        ///   or <see cref="IOptimizationMethod.Maximize()"/>.
+        ///   call to <see cref="IOptimizationMethod{TInput, TOutput}.Minimize()"/>
+        ///   or <see cref="IOptimizationMethod{TInput, TOutput}.Maximize()"/>.
         /// </summary>
         /// 
         /// <value>
@@ -211,8 +211,8 @@ namespace Accord.Math.Optimization
 
         /// <summary>
         ///   Gets the number of function evaluations performed
-        ///   in the last call to <see cref="IOptimizationMethod.Minimize()"/>
-        ///   or <see cref="IOptimizationMethod.Maximize()"/>.
+        ///   in the last call to <see cref="IOptimizationMethod{TInput, TOutput}.Minimize()"/>
+        ///   or <see cref="IOptimizationMethod{TInput, TOutput}.Maximize()"/>.
         /// </summary>
         /// 
         /// <value>
@@ -318,8 +318,8 @@ namespace Accord.Math.Optimization
 
         /// <summary>
         ///   Get the exit code returned in the last call to the
-        ///   <see cref="IOptimizationMethod.Maximize()"/> or 
-        ///   <see cref="IOptimizationMethod.Minimize()"/> methods.
+        ///   <see cref="IOptimizationMethod{TInput, TOutput}.Maximize()"/> or 
+        ///   <see cref="IOptimizationMethod{TInput, TOutput}.Minimize()"/> methods.
         /// </summary>
         /// 
         public BoundedBroydenFletcherGoldfarbShannoStatus Status { get; private set; }
@@ -451,6 +451,8 @@ namespace Accord.Math.Optimization
         // c        ------- the beginning of the loop ----------
         // 
         L111:
+            if (Token.IsCancellationRequested)
+                return false;
 
             iterations++;
 

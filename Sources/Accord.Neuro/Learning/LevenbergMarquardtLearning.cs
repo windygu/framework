@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -23,15 +23,16 @@
 namespace Accord.Neuro.Learning
 {
     using System;
-    using System.Diagnostics;
+    using System.Threading;
     using System.Threading.Tasks;
     using Accord.Math;
     using Accord.Math.Decompositions;
-    using AForge.Neuro;
+    using MachineLearning;
 
     /// <summary>
     ///   The Jacobian computation method used by the Levenberg-Marquardt.
     /// </summary>
+    /// 
     public enum JacobianMethod
     {
         /// <summary>
@@ -206,7 +207,7 @@ namespace Accord.Neuro.Learning
     /// </para>   
     /// </remarks>
     /// 
-    public class LevenbergMarquardtLearning : AForge.Neuro.Learning.ISupervisedLearning
+    public class LevenbergMarquardtLearning : ISupervisedLearning
     {
 
         private const double lambdaMax = 1e25;
@@ -233,6 +234,7 @@ namespace Accord.Neuro.Learning
         private float[] weights;
         private float[] deltas;
         private double[] errors;
+
 
         private JacobianMethod method;
 
@@ -404,7 +406,11 @@ namespace Accord.Neuro.Learning
             get { return gradient; }
         }
 
-
+        /// <summary>
+        ///   Gets or sets the parallelization options for this algorithm.
+        /// </summary>
+        /// 
+        public ParallelOptions ParallelOptions { get; set; }
 
         /// <summary>
         ///   Initializes a new instance of the <see cref="LevenbergMarquardtLearning"/> class.
@@ -423,7 +429,9 @@ namespace Accord.Neuro.Learning
         /// <param name="useRegularization">True to use Bayesian regularization, false otherwise.</param>
         /// 
         public LevenbergMarquardtLearning(ActivationNetwork network, bool useRegularization) :
-            this(network, useRegularization, JacobianMethod.ByBackpropagation) { }
+            this(network, useRegularization, JacobianMethod.ByBackpropagation)
+        {
+        }
 
         /// <summary>
         ///   Initializes a new instance of the <see cref="LevenbergMarquardtLearning"/> class.
@@ -447,6 +455,7 @@ namespace Accord.Neuro.Learning
         /// 
         public LevenbergMarquardtLearning(ActivationNetwork network, bool useRegularization, JacobianMethod method)
         {
+            this.ParallelOptions = new ParallelOptions();
             this.network = network;
             this.numberOfParameters = getNumberOfParameters(network);
             this.outputCount = network.Layers[network.Layers.Length - 1].Neurons.Length;
@@ -573,13 +582,11 @@ namespace Accord.Neuro.Learning
                 if (s == Blocks && finalBlock == 0)
                     continue;
 
-                Trace.TraceInformation("Starting Jacobian block {0}/{1}", s + 1, Blocks);
-
                 int B = (s == Blocks) ? finalBlock : blockSize;
-                int[] block = Matrix.Indices(s * blockSize, s * blockSize + B);
+                int[] block = Vector.Range(s * blockSize, s * blockSize + B);
 
-                double[][] inputBlock = input.Submatrix(block);
-                double[][] outputBlock = output.Submatrix(block);
+                double[][] inputBlock = input.Get(block);
+                double[][] outputBlock = output.Get(block);
 
 
                 // Compute the partial Jacobian matrix
@@ -591,11 +598,8 @@ namespace Accord.Neuro.Learning
                 if (Double.IsNaN(sumOfSquaredErrors))
                     throw new ArithmeticException("Jacobian calculation has produced a non-finite number.");
 
-                Trace.TraceInformation("Jacobian block finished.");
-
 
                 // Compute error gradient using Jacobian
-                Trace.TraceInformation("Updating gradient.");
                 for (int i = 0; i < jacobian.Length; i++)
                 {
                     double gsum = 0;
@@ -607,8 +611,7 @@ namespace Accord.Neuro.Learning
 
                 // Compute Quasi-Hessian Matrix approximation
                 //  using the outer product Jacobian (H ~ J'J)
-                Trace.TraceInformation("Updating Hessian.");
-                Parallel.For(0, jacobian.Length, i =>
+                Parallel.For(0, jacobian.Length, ParallelOptions, i =>
                 {
                     float[] ji = jacobian[i];
                     float[] hi = hessian[i];
@@ -630,7 +633,6 @@ namespace Accord.Neuro.Learning
                 });
             }
 
-            Trace.TraceInformation("Hessian computation finished.");
 
             // Store the Hessian's diagonal for future computations. The
             // diagonal will be destroyed in the decomposition, so it can
@@ -660,16 +662,12 @@ namespace Accord.Neuro.Learning
                 for (int i = 0; i < diagonal.Length; i++)
                     hessian[i][i] = (float)(diagonal[i] + 2 * lambda + 2 * alpha);
 
-                Trace.TraceInformation("Decomposition started.");
-
                 // Decompose to solve the linear system. The Cholesky decomposition
                 // is done in place, occupying the Hessian's lower-triangular part.
                 decomposition = new JaggedCholeskyDecompositionF(hessian, robust: true, inPlace: true);
 
-                Trace.TraceInformation("Decomposition ended.");
-
                 // Check if the decomposition exists
-                if (decomposition.IsNotDefined)
+                if (decomposition.IsUndefined)
                 {
                     // The Hessian is singular. Continue to the next
                     // iteration until the diagonal update transforms
@@ -677,12 +675,9 @@ namespace Accord.Neuro.Learning
                     continue;
                 }
 
-                Trace.TraceInformation("Solving linear system.");
 
                 // Solve using Cholesky decomposition
                 deltas = decomposition.Solve(gradient);
-
-                Trace.TraceInformation("Updating weights.");
 
                 // Update weights using the calculated deltas
                 sumOfSquaredWeights = loadArrayIntoNetwork();

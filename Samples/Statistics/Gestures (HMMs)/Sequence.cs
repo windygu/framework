@@ -1,7 +1,7 @@
 ﻿// Accord.NET Sample Applications
 // http://accord-framework.net
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -136,7 +136,7 @@ namespace Gestures.HMMs
             {
                 int x = (int)sequence[i].X - xmin;
                 int y = (int)sequence[i].Y - ymin;
-                int p = (int)Accord.Math.Tools.Scale(0, sequence.Length, 0, 255, i);
+                int p = (int)i.Scale(0, sequence.Length, 0, 255);
 
                 int prevX = (int)sequence[i - 1].X - xmin;
                 int prevY = (int)sequence[i - 1].Y - ymin;

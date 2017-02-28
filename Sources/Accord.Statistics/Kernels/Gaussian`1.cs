@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ namespace Accord.Statistics.Kernels
     using System;
     using AForge;
     using Accord.Math;
+    using Accord.Math.Distances;
 
     /// <summary>
     ///   Composite Gaussian Kernel.
@@ -32,7 +33,8 @@ namespace Accord.Statistics.Kernels
     /// 
     [Serializable]
     public sealed class Gaussian<T> : KernelBase, IKernel, 
-        IEstimable, ICloneable where T: IKernel, IDistance, ICloneable
+        IEstimable, ICloneable 
+        where T: IKernel, IDistance, ICloneable
     {
         private double sigma;
         private double gamma;
@@ -40,7 +42,7 @@ namespace Accord.Statistics.Kernels
         private T innerKernel;
 
         /// <summary>
-        ///   Constructs a new Gaussian Dynamic Time Warping Kernel
+        ///   Constructs a new Composite Gaussian Kernel
         /// </summary>
         /// 
         /// <param name="innerKernel">The inner kernel function of the composite kernel.</param>
@@ -51,7 +53,7 @@ namespace Accord.Statistics.Kernels
         }
 
         /// <summary>
-        ///   Constructs a new Gaussian Dynamic Time Warping Kernel
+        ///   Constructs a new Composite Gaussian Kernel
         /// </summary>
         /// 
         /// <param name="innerKernel">The inner kernel function of the composite kernel.</param>
@@ -129,16 +131,9 @@ namespace Accord.Statistics.Kernels
 
 
 
-        /// <summary>
-        ///   Estimates kernel parameters from the data.
-        /// </summary>
-        /// 
-        /// <param name="inputs">The input data.</param>
-        /// 
-        void IEstimable.Estimate(double[][] inputs)
+        void IEstimable<double[]>.Estimate(double[][] inputs)
         {
-            var g = Gaussian.Estimate(innerKernel, inputs);
-            this.Gamma = g.Gamma;
+            this.Gamma = Gaussian.Estimate(innerKernel, inputs).Gamma;
         }
 
         /// <summary>

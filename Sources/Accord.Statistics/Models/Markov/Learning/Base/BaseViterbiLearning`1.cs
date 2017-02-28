@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ namespace Accord.Statistics.Models.Markov.Learning
 {
     using Accord.Math;
     using System;
+    using System.Threading;
 
     /// <summary>
     ///   Base class for implementations of the Viterbi learning algorithm.
@@ -51,6 +52,14 @@ namespace Accord.Statistics.Models.Markov.Learning
 
         private RelativeConvergence convergence;
         private int batches = 1;
+
+        /// <summary>
+        ///   Gets or sets a cancellation token that can be used to
+        ///   stop the learning algorithm while it is running.
+        /// </summary>
+        /// 
+        public virtual CancellationToken Token { get; set; }
+
 
         /// <summary>
         ///   Gets or sets the maximum change in the average log-likelihood
@@ -129,6 +138,9 @@ namespace Accord.Statistics.Models.Markov.Learning
 
             do // Until convergence or max iterations is reached
             {
+                if (Token.IsCancellationRequested)
+                    return newLogLikelihood;
+
                 if (batches == 1)
                 {
                     RunEpoch(observations, paths);
@@ -136,14 +148,14 @@ namespace Accord.Statistics.Models.Markov.Learning
                 else
                 {
                     // Divide in batches
-                    int[] groups = Accord.Statistics.Tools.RandomGroups(observations.Length, batches);
+                    int[] groups = Classes.Random(observations.Length, batches);
 
                     // For each batch
                     for (int j = 0; j < batches; j++)
                     {
                         var idx = groups.Find(x => x == j);
-                        var inputs = observations.Submatrix(idx);
-                        var outputs = paths.Submatrix(idx);
+                        var inputs = observations.Get(idx);
+                        var outputs = paths.Get(idx);
                         RunEpoch(inputs, outputs);
                     }
                 }
@@ -154,7 +166,7 @@ namespace Accord.Statistics.Models.Markov.Learning
                 // Check convergence
                 convergence.NewValue = newLogLikelihood;
 
-            } while (!convergence.HasConverged);
+            } while (!convergence.HasConverged && !Token.IsCancellationRequested);
 
             return newLogLikelihood;
         }

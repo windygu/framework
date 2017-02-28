@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@ namespace Accord.Collections
 {
     using System;
     using System.Collections.Generic;
-
+#if !MONO
     /// <summary>
     ///   Read-only dictionary wrapper.
     /// </summary>
@@ -262,4 +262,5 @@ namespace Accord.Collections
         }
 
     }
+#endif
 }

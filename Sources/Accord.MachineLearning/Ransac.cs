@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -47,6 +47,8 @@
 
 namespace Accord.MachineLearning
 {
+    using Accord.Math;
+    using Accord.Statistics;
     using System;
 
     /// <summary>
@@ -77,7 +79,12 @@ namespace Accord.MachineLearning
     /// </para>
     /// </remarks>
     /// 
+    /// <example>
+    /// <code source="Unit Tests\Accord.Tests.MachineLearning\RansacTest.cs" region="doc_learn" />
+    /// </example>
+    /// 
     public class RANSAC<TModel> where TModel : class
+        // TODO: Implement ISupervisedLearning interface
     {
         // RANSAC parameters
         private int s;    // number of samples
@@ -93,7 +100,6 @@ namespace Accord.MachineLearning
 
 
 
-        #region Properties
         /// <summary>
         ///   Model fitting function.
         /// </summary>
@@ -151,10 +157,6 @@ namespace Accord.MachineLearning
         ///   non-degenerate data set. Default is 100.
         /// </summary>
         /// 
-        /// <remarks>
-        ///   The default value is 100.
-        /// </remarks>
-        /// 
         public int MaxSamplings
         {
             get { return maxSamplings; }
@@ -162,18 +164,27 @@ namespace Accord.MachineLearning
         }
 
         /// <summary>
-        ///   Maximum number of iterations. Default is 1000.
+        ///   Maximum number of trials. Default is 1000.
         /// </summary>
-        /// 
-        /// <remarks>
-        ///   The default value is 1000.
-        /// </remarks>
         /// 
         public int MaxEvaluations
         {
             get { return maxEvaluations; }
             set { maxEvaluations = value; }
         }
+
+        /// <summary>
+        /// Gets the current estimate of trials needed.
+        /// </summary>
+        /// 
+        public int TrialsNeeded { get; private set; }
+
+        /// <summary>
+        /// Gets the current number of trials performed.
+        /// </summary>
+        /// 
+        public int TrialsPerformed { get; private set; }
+
 
         /// <summary>
         ///   Gets or sets the probability of obtaining a random
@@ -186,7 +197,6 @@ namespace Accord.MachineLearning
             get { return probability; }
             set { probability = value; }
         }
-        #endregion
 
 
         /// <summary>
@@ -243,10 +253,10 @@ namespace Accord.MachineLearning
         /// 
         public RANSAC(int minSamples, double threshold, double probability)
         {
-            if (minSamples < 0) 
+            if (minSamples < 0)
                 throw new ArgumentOutOfRangeException("minSamples");
 
-            if (threshold < 0) 
+            if (threshold < 0)
                 throw new ArgumentOutOfRangeException("threshold");
 
             if (probability > 1.0 || probability < 0.0)
@@ -290,12 +300,12 @@ namespace Accord.MachineLearning
             // For this we are going to search for random samples
             //  of the original points which contains no outliers.
 
-            int count = 0;  // Total number of trials performed
-            double N = maxEvaluations;   // Estimative of number of trials needed.
+            TrialsPerformed = 0;              // Total number of trials performed
+            TrialsNeeded = maxEvaluations;  // Estimative of number of trials needed.
 
             // While the number of trials is less than our estimative,
             //   and we have not surpassed the maximum number of trials
-            while (count < N && count < maxEvaluations)
+            while (TrialsPerformed < TrialsNeeded && TrialsPerformed < maxEvaluations)
             {
                 TModel model = null;
                 int[] sample = null;
@@ -306,7 +316,7 @@ namespace Accord.MachineLearning
                 while (samplings < maxSamplings)
                 {
                     // Select at random s data points to form a trial model.
-                    sample = Statistics.Tools.RandomSample(size, r);
+                    sample = Vector.Sample(r, size);
 
                     // If the sampled points are not in a degenerate configuration,
                     if (degenerate == null || !degenerate(sample))
@@ -340,15 +350,20 @@ namespace Accord.MachineLearning
                     double pInlier = (double)inliers.Length / (double)size;
                     double pNoOutliers = 1.0 - System.Math.Pow(pInlier, s);
 
-                    N = System.Math.Log(1.0 - probability) / System.Math.Log(pNoOutliers);
+                    double num = System.Math.Log(1.0 - probability);
+                    double den = System.Math.Log(pNoOutliers);
+                    if (den == 0)
+                        TrialsNeeded = num == 0 ? 0 : MaxEvaluations;
+                    else TrialsNeeded = (int)(num / den);
                 }
 
-                count++; // Increase the trial counter.
+                TrialsPerformed++; // Increase the trial counter.
             }
 
             inliers = bestInliers;
             return bestModel;
         }
+
 
 
     }

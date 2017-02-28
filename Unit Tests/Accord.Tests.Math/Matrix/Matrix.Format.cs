@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -26,25 +26,11 @@ namespace Accord.Tests.Math
     using NUnit.Framework;
     using System.Collections.Generic;
     using System;
+    using Accord;
 
     [TestFixture]
     public class MatrixFormatTest
     {
-
-        private TestContext testContextInstance;
-
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
-
 
         [Test]
         public void ParseTest1()
@@ -57,7 +43,7 @@ namespace Accord.Tests.Math
             double[,] I = Matrix.Identity(size: 2);
 
             // Matrix multiplication
-            double[,] b = a.Multiply(I);
+            double[,] b = Matrix.Multiply(a, I);
 
             Assert.AreEqual(1, b[0, 0]);
             Assert.AreEqual(2, b[0, 1]);
@@ -170,23 +156,23 @@ namespace Accord.Tests.Math
             Assert.AreEqual(expected, actual);
 
 
-            expected = "1 2 \r\n3 4";
+            expected = String.Format("1 2 {0}3 4", Environment.NewLine);
             actual = Matrix.ToString(matrix, DefaultMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);
 
 
-            expected = "new double[][] {\r\n" +
-                       "    new double[] { 1, 2 },\r\n" +
-                       "    new double[] { 3, 4 } \r\n" +
-                       "};";
+            expected = String.Format("new double[][] {{{0}" +
+                       "    new double[] {{ 1, 2 }},{0}" +
+                       "    new double[] {{ 3, 4 }} {0}" +
+                       "}};", Environment.NewLine);
             actual = Matrix.ToString(matrix, CSharpJaggedMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);
 
 
-            expected = "new double[,] {\r\n" +
-                       "    { 1, 2 },\r\n" +
-                       "    { 3, 4 } \r\n" +
-                       "};";
+            expected = String.Format("new double[,] {{{0}" +
+                       "    {{ 1, 2 }},{0}" +
+                       "    {{ 3, 4 }} {0}" +
+                       "}};", Environment.NewLine);
             actual = Matrix.ToString(matrix, CSharpMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);
         }
@@ -207,22 +193,22 @@ namespace Accord.Tests.Math
             Assert.AreEqual(expected, actual);
 
 
-            expected = "1 2 \r\n3 4";
+            expected = "1 2 " + Environment.NewLine + "3 4";
             actual = Matrix.ToString(matrix, DefaultMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);
 
 
-            expected = "new double[][] {\r\n" +
-                       "    new double[] { 1, 2 },\r\n" +
-                       "    new double[] { 3, 4 } \r\n" +
+            expected = "new double[][] {" + Environment.NewLine +
+                       "    new double[] { 1, 2 }," + Environment.NewLine +
+                       "    new double[] { 3, 4 } " + Environment.NewLine +
                        "};";
             actual = Matrix.ToString(matrix, CSharpJaggedMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);
 
 
-            expected = "new double[,] {\r\n" +
-                       "    { 1, 2 },\r\n" +
-                       "    { 3, 4 } \r\n" +
+            expected = "new double[,] {" + Environment.NewLine +
+                       "    { 1, 2 }," + Environment.NewLine +
+                       "    { 3, 4 } " + Environment.NewLine +
                        "};";
             actual = Matrix.ToString(matrix, CSharpMatrixFormatProvider.InvariantCulture);
             Assert.AreEqual(expected, actual);

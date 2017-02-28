@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -30,6 +30,7 @@ namespace Accord.Statistics.Moving
     ///   Moving-window statistics.
     /// </summary>
     /// 
+    [Serializable]
     public class MovingNormalStatistics : IMovingStatistics, IEnumerable<double>
     {
         private Queue<double> values;
@@ -132,7 +133,7 @@ namespace Accord.Statistics.Moving
             Sum += value;
             SumOfSquares += square;
 
-            int N = values.Count;
+            double N = values.Count;
 
             Mean = Sum / N;
             Variance = (N * SumOfSquares - (Sum * Sum)) / (N * (N - 1));

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -223,7 +223,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.IntRange" /> containing
+        ///   A <see cref="IntRange" /> containing
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -307,52 +307,6 @@ namespace Accord.Statistics.Distributions.Univariate
         }
 
         /// <summary>
-        ///   Gets the inverse of the cumulative distribution function (icdf) for
-        ///   this distribution evaluated at probability <c>p</c>. This function
-        ///   is also known as the Quantile function.
-        /// </summary>
-        /// 
-        /// <param name="p">A probability value between 0 and 1.</param>
-        /// 
-        /// <returns>The observation which most likely generated <paramref name="p"/>.</returns>
-        /// 
-        /// <remarks>
-        /// <para>
-        ///   The Inverse Cumulative Distribution Function (ICDF) specifies, for
-        ///   a given probability, the value which the random variable will be at,
-        ///   or below, with that probability.</para>
-        /// <para>
-        ///   In Poisson's distribution, the Inverse CDF can be computed using
-        ///   the <see cref="Gamma.Inverse">inverse Gamma function Γ'(a, x)</see>
-        ///   as 
-        ///             <code>icdf(p) = Γ'(λ, 1 - p)</code>
-        ///   .</para>
-        /// </remarks>
-        public override int InverseDistributionFunction(double p)
-        {
-            if (p == 1)
-                return Support.Max;
-            else if (p == 0)
-                return Support.Min;
-
-            double result = Gamma.InverseUpperIncomplete(lambda, 1.0 - p) - 1;
-
-            int actual = (int)Math.Ceiling(result);
-            double m = DistributionFunction(actual);
-
-            if (m < p)
-                actual = actual + 1;
-
-#if DEBUG
-            double expected = BaseInverseDistributionFunction(p);
-            if (actual != expected)
-                throw new Exception();
-#endif
-
-            return actual;
-        }
-
-        /// <summary>
         ///   Fits the underlying distribution to a given set of observations.
         /// </summary>
         /// 
@@ -394,29 +348,53 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
+        ///
         /// <returns>A random vector of observations drawn from this distribution.</returns>
         /// 
-        public override int[] Generate(int samples)
+        public override int[] Generate(int samples, int[] result)
         {
-            var random = Accord.Math.Tools.Random;
-
-            int[] s = new int[samples];
+            var random = Accord.Math.Random.Generator.Random;
 
             if (lambda > 30)
             {
-                for (int i = 0; i < s.Length; i++)
-                {
-                    double u = random.NextDouble();
-                    s[i] = InverseDistributionFunction(u);
-                }
+                for (int i = 0; i < samples; i++)
+                    result[i] = InverseDistributionFunction(random.NextDouble());
             }
             else
             {
-                for (int i = 0; i < s.Length; i++)
-                    s[i] = knuth(random, lambda);
+                for (int i = 0; i < samples; i++)
+                    result[i] = knuth(random, lambda);
             }
 
-            return s;
+            return result;
+        }
+
+        /// <summary>
+        ///   Generates a random vector of observations from the current distribution.
+        /// </summary>
+        /// 
+        /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
+        /// 
+        /// <returns>A random vector of observations drawn from this distribution.</returns>
+        /// 
+        public override double[] Generate(int samples, double[] result)
+        {
+            var random = Accord.Math.Random.Generator.Random;
+
+            if (lambda > 30)
+            {
+                for (int i = 0; i < samples; i++)
+                    result[i] = InverseDistributionFunction(random.NextDouble());
+            }
+            else
+            {
+                for (int i = 0; i < samples; i++)
+                    result[i] = knuth(random, lambda);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -428,9 +406,9 @@ namespace Accord.Statistics.Distributions.Univariate
         public override int Generate()
         {
             if (lambda > 30)
-                return InverseDistributionFunction(Accord.Math.Tools.Random.NextDouble());
+                return InverseDistributionFunction(Accord.Math.Random.Generator.Random.NextDouble());
 
-            return knuth(Accord.Math.Tools.Random, lambda);
+            return knuth(Accord.Math.Random.Generator.Random, lambda);
         }
 
         private static int knuth(Random random, double lambda)

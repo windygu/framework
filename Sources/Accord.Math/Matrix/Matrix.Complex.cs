@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -169,7 +169,7 @@ namespace Accord.Math
 
             var re = new double[rows, cols];
             for (int i = 0; i < rows; i++)
-                for (int j = 0; i < cols; j++)
+                for (int j = 0; j < cols; j++)
                     re[i, j] = c[i, j].Real;
 
             return re;
@@ -211,7 +211,7 @@ namespace Accord.Math
 
             var im = new double[rows, cols];
             for (int i = 0; i < rows; i++)
-                for (int j = 0; i < cols; j++)
+                for (int j = 0; j < cols; j++)
                     im[i, j] = c[i, j].Imaginary;
 
             return im;
@@ -361,7 +361,7 @@ namespace Accord.Math
             if (objB == null) throw new ArgumentNullException("objB");
 
             for (int i = 0; i < objA.Length; i++)
-            {
+            { 
                 double xr = objA[i].Real;
                 double yr = objB[i].Real;
                 double xi = objA[i].Imaginary;
@@ -380,7 +380,7 @@ namespace Accord.Math
         ///   Gets the squared magnitude of a complex number.
         /// </summary>
         /// 
-#if NET45
+#if NET45 || NET46
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #endif
         public static double SquaredMagnitude(this Complex value)

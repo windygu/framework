@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -37,6 +37,11 @@ out
 #endif
  T> : IEnumerable<T>, IEnumerable
     {
+        /// <summary>
+        ///   Gets the number of elements in the collection.
+        /// </summary>
+        /// 
+        int Count { get; }
     }
 }
 #endif

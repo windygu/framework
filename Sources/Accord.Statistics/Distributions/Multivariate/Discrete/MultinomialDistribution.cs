@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -195,6 +195,22 @@ namespace Accord.Statistics.Distributions.Multivariate
                 }
 
                 return covariance;
+            }
+        }
+
+        /// <summary>
+        /// Gets the support interval for this distribution.
+        /// </summary>
+        /// <value>A <see cref="IntRange" /> containing
+        /// the support interval for this distribution.</value>
+        public override IntRange[] Support
+        {
+            get
+            {
+                var range = new IntRange[Dimension];
+                for (int i = 0; i < range.Length; i++)
+                    range[i] = new IntRange(0, N);
+                return range;
             }
         }
 

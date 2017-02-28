@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -20,6 +20,8 @@
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 
+#pragma warning disable 612, 618
+
 namespace Accord.Statistics.Models.Fields.Learning
 {
     using System;
@@ -27,6 +29,7 @@ namespace Accord.Statistics.Models.Fields.Learning
     using System.Threading;
     using System.Threading.Tasks;
     using Accord.Math;
+    using Accord.MachineLearning;
 
     /// <summary>
     ///   Resilient Gradient Learning.
@@ -102,9 +105,13 @@ namespace Accord.Statistics.Models.Fields.Learning
     /// </code>
     /// </example>
     /// 
-    public class HiddenResilientGradientLearning<T> : IHiddenConditionalRandomFieldLearning<T>,
+    public class HiddenResilientGradientLearning<T> :
+        ISupervisedLearning<HiddenConditionalRandomField<T>, T[], int>,
+        IHiddenConditionalRandomFieldLearning<T>,
         IConvergenceLearning, IDisposable
     {
+        [NonSerialized]
+        CancellationToken token = new CancellationToken();
 
         private ForwardBackwardGradient<T> calculator;
         private ISingleValueConvergence convergence;
@@ -125,6 +132,15 @@ namespace Accord.Statistics.Models.Fields.Learning
         // update values, also known as deltas
         private double[] weightsUpdates;
 
+        /// <summary>
+        /// Gets or sets a cancellation token that can be used to
+        /// stop the learning algorithm while it is running.
+        /// </summary>
+        public CancellationToken Token
+        {
+            get { return token; }
+            set { token = value; }
+        }
 
         /// <summary>
         ///   Gets or sets the model being trained.
@@ -275,13 +291,21 @@ namespace Accord.Statistics.Models.Fields.Learning
         /// 
         /// <returns>The error in the last iteration.</returns>
         /// 
+        [Obsolete("Please use Learn(x, y) instead.")]
         public double Run(T[][] observations, int[] outputs)
+        {
+            return run(observations, outputs);
+        }
+
+        private double run(T[][] observations, int[] outputs)
         {
             convergence.Clear();
 
             do
             {
                 RunEpoch(observations, outputs);
+                if (Token.IsCancellationRequested)
+                    break;
             }
             while (!convergence.HasConverged);
 
@@ -336,7 +360,7 @@ namespace Accord.Statistics.Models.Fields.Learning
                     double percent = current / (double)observations.Length * 100.0;
                     OnProgressChanged(new ProgressChangedEventArgs((int)percent, i));
 
-                    System.Diagnostics.Debug.Assert(!gradient.HasNaN());
+                    Accord.Diagnostics.Debug.Assert(!gradient.HasNaN());
                 }
 #if !SERIAL
 );
@@ -384,7 +408,7 @@ namespace Accord.Statistics.Models.Fields.Learning
                 }
             }
 
-            System.Diagnostics.Debug.Assert(!Model.Function.Weights.HasNaN());
+            Accord.Diagnostics.Debug.Assert(!Model.Function.Weights.HasNaN());
 
             return convergence.NewValue = error;
         }
@@ -432,6 +456,20 @@ namespace Accord.Statistics.Models.Fields.Learning
             });
         }
 
+        /// <summary>
+        /// Learns a model that can map the given inputs to the given outputs.
+        /// </summary>
+        /// <param name="x">The model inputs.</param>
+        /// <param name="y">The desired outputs associated with each <paramref name="x">inputs</paramref>.</param>
+        /// <param name="weights">The weight of importance for each input-output pair.</param>
+        /// <returns>
+        /// A model that has learned how to produce <paramref name="y" /> given <paramref name="x" />.
+        /// </returns>
+        public HiddenConditionalRandomField<T> Learn(T[][] x, int[] y, double[] weights = null)
+        {
+            run(x, y);
+            return Model;
+        }
 
 
         #region IDisposable Members

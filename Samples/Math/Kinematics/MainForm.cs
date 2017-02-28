@@ -4,7 +4,7 @@
 // Copyright © Rémy Dispagne, 2013
 // cramer at libertysurf.fr
 //
-// Copyright © 2009-2014, César Souza
+// Copyright © 2009-2017, César Souza
 // All rights reserved. 3-BSD License:
 //
 //   Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ using System;
 using System.Windows.Forms;
 using Accord.Controls;
 using Accord.Math.Kinematics;
-using AForge.Math;
+using Accord.Math;
 
 namespace SampleApp
 {

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ namespace Accord.Tests.Statistics
     using Accord.Statistics.Models.Markov.Learning;
     using Accord.Math;
     using System;
+    using Accord.Math.Optimization.Losses;
 
 
     [TestFixture]
@@ -34,26 +35,10 @@ namespace Accord.Tests.Statistics
     {
 
 
-        private TestContext testContextInstance;
-
-
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
-
-
-
         [Test]
         public void LearnTest()
         {
+            #region doc_learn
             // Declare some testing data
             int[][] inputs = new int[][]
             {
@@ -99,15 +84,21 @@ namespace Accord.Tests.Statistics
                 }
             );
 
-            // Train the sequence classifier using the algorithm
-            double likelihood = teacher.Run(inputs, outputs);
+            // Train the sequence classifier 
+            teacher.Learn(inputs, outputs);
 
+            // Obtain classification labels for the output
+            int[] predicted = classifier.Decide(inputs);
+
+            // Obtain prediction scores for the outputs
+            double[] lls = classifier.LogLikelihood(inputs);
+            #endregion
 
             // Will assert the models have learned the sequences correctly.
             for (int i = 0; i < inputs.Length; i++)
             {
                 int expected = outputs[i];
-                int actual = classifier.Compute(inputs[i], out likelihood);
+                int actual = predicted[i];
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -116,6 +107,7 @@ namespace Accord.Tests.Statistics
         [Test]
         public void LearnTest2()
         {
+            #region doc_rejection
             // Declare some testing data
             int[][] inputs = new int[][]
             {
@@ -164,10 +156,18 @@ namespace Accord.Tests.Statistics
             // Enable support for sequence rejection
             teacher.Rejection = true;
 
-            // Train the sequence classifier using the algorithm
-            double likelihood = teacher.Run(inputs, outputs);
+            // Train the sequence classifier 
+            teacher.Learn(inputs, outputs);
 
-            Assert.AreEqual(-0.84036002169161428, likelihood, 1e-15);
+            // Obtain prediction classes for the outputs
+            int[] prediction = classifier.Decide(inputs);
+
+            // Obtain prediction scores for the outputs
+            double[] lls = classifier.LogLikelihood(inputs);
+            #endregion
+
+            //likelihood = new LogLikelihoodLoss(outputs).Loss(prediction);
+            double likelihood = teacher.LogLikelihood;
 
             likelihood = testThresholdModel(inputs, outputs, classifier, likelihood);
         }
@@ -194,7 +194,7 @@ namespace Accord.Tests.Statistics
                 for (int j = 0; j < 3; j++)
                     Assert.AreEqual(Double.NegativeInfinity, threshold.Transitions[i, j]);
 
-            Assert.IsFalse(Matrix.HasNaN(threshold.Transitions));
+            Assert.IsFalse(Matrix.HasNaN(threshold.LogTransitions));
 
             classifier.Sensitivity = 0.5;
 
@@ -215,15 +215,12 @@ namespace Accord.Tests.Statistics
 
             Assert.AreEqual(-1, c);
             Assert.AreEqual(0.99994164708402866, logRejection);
-            Assert.IsFalse(double.IsNaN(logRejection));
 
             logRejection = threshold.Evaluate(r0);
             Assert.AreEqual(-5.6077079936209504, logRejection, 1e-10);
-            Assert.IsFalse(double.IsNaN(logRejection));
 
             threshold.Decode(r0, out logRejection);
             Assert.AreEqual(-9.3103554170761686, logRejection, 1e-10);
-            Assert.IsFalse(double.IsNaN(logRejection));
 
             foreach (var model in classifier.Models)
             {

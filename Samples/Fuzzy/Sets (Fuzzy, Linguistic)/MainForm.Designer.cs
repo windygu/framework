@@ -11,13 +11,13 @@ namespace SampleApp
         /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-        protected override void Dispose( bool disposing )
+        protected override void Dispose(bool disposing)
         {
-            if ( disposing && ( components != null ) )
+            if (disposing && (components != null))
             {
-                components.Dispose( );
+                components.Dispose();
             }
-            base.Dispose( disposing );
+            base.Dispose(disposing);
         }
 
         #region Windows Form Designer generated code
@@ -26,10 +26,10 @@ namespace SampleApp
         /// Required method for Designer support - do not modify
         /// the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent( )
+        private void InitializeComponent()
         {
             this.runFuzzySetTestButton = new System.Windows.Forms.Button();
-            this.chart = new AForge.Controls.Chart();
+            this.chart = new Accord.Controls.Chart();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -135,7 +135,7 @@ namespace SampleApp
         #endregion
 
         private System.Windows.Forms.Button runFuzzySetTestButton;
-        private AForge.Controls.Chart chart;
+        private Accord.Controls.Chart chart;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;

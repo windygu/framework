@@ -22,7 +22,7 @@
 
 namespace Accord.Imaging
 {
-    using AForge.Imaging;
+    using Accord.Imaging;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -51,7 +51,7 @@ namespace Accord.Imaging
     /// Bitmap ori = ... // Original picture
     /// Bitmap recon = ... // Reconstructed picture
     /// 
-    /// // Create a new Wolf-Joulion threshold:
+    /// // Create a new Objective fidelity comparer:
     /// var of = new ObjectiveFidelity(ori, recon);
     /// 
     /// // Get the results

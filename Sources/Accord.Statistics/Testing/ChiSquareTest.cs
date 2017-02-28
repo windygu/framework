@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -204,7 +204,7 @@ namespace Accord.Statistics.Testing
         ///   Constructs a Chi-Square Test.
         /// </summary>
         /// 
-        public ChiSquareTest(double[] observations, IUnivariateDistribution hypothesizedDistribution)
+        public ChiSquareTest(double[] observations, IUnivariateDistribution<double> hypothesizedDistribution)
         {
             int n = observations.Length;
             var E = new EmpiricalDistribution(observations);
@@ -252,8 +252,8 @@ namespace Accord.Statistics.Testing
             }
 
 
-            ebins = ebins.Submatrix(size + 2);
-            expected = expected.Submatrix(ebins.Length - 2);
+            ebins = ebins.First(size + 2);
+            expected = expected.First(ebins.Length - 2);
 
             double[] observed = new double[expected.Length];
             for (int i = 0; i < observed.Length; i++)

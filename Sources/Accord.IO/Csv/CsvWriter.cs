@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -256,7 +256,7 @@ namespace Accord.IO
             string[] items = new string[fields.Length];
 
             for (int i = 0; i < items.Length; i++)
-                items[i] = quote(items[i]);
+                items[i] = quote(fields[i]);
 
             write(items, comment);
         }

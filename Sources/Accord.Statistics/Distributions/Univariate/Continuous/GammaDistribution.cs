@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -87,31 +87,7 @@ namespace Accord.Statistics.Distributions.Univariate
     ///   The following example shows how to create, test and compute the main 
     ///   functions of a Gamma distribution given parameters θ = 4 and k = 2: </para>
     ///   
-    /// <code>
-    ///   // Create a Γ-distribution with k = 2 and θ = 4
-    ///   var gamma = new GammaDistribution(theta: 4, k: 2);
-    /// 
-    ///   // Common measures
-    ///   double mean   = gamma.Mean;     // 8.0
-    ///   double median = gamma.Median;   // 6.7133878418421506
-    ///   double var    = gamma.Variance; // 32.0
-    /// 
-    ///   // Cumulative distribution functions
-    ///   double cdf  = gamma.DistributionFunction(x: 0.27);              //  0.002178158242390601
-    ///   double ccdf = gamma.ComplementaryDistributionFunction(x: 0.27); // 0.99782184175760935
-    ///   double icdf = gamma.InverseDistributionFunction(p: cdf);        // 0.26999998689819171
-    ///   
-    ///   // Probability density functions
-    ///   double pdf  = gamma.ProbabilityDensityFunction(x: 0.27);    //  0.015773530285395465
-    ///   double lpdf = gamma.LogProbabilityDensityFunction(x: 0.27); // -4.1494220422235433
-    /// 
-    ///   // Hazard (failure rate) functions
-    ///   double hf  = gamma.HazardFunction(x: 0.27);           // 0.015807962529274005
-    ///   double chf = gamma.CumulativeHazardFunction(x: 0.27); // 0.0021805338793574793
-    ///
-    ///   // String representation
-    ///   string str = gamma.ToString(CultureInfo.InvariantCulture); // "Γ(x; k = 2, θ = 4)"
-    /// </code>
+    /// <code source="Unit Tests\Accord.Tests.Statistics\Distributions\Univariate\Continuous\GammaDistributionTest.cs" region="doc_ctor"/>
     /// </example>
     /// 
     /// <seealso cref="Accord.Math.Gamma"/>
@@ -119,7 +95,7 @@ namespace Accord.Statistics.Distributions.Univariate
     /// 
     [Serializable]
     public class GammaDistribution : UnivariateContinuousDistribution,
-        IFittableDistribution<double, IFittingOptions>,
+        IFittableDistribution<double, GammaOptions>,
         ISampleableDistribution<double>
     {
 
@@ -128,7 +104,6 @@ namespace Accord.Statistics.Distributions.Univariate
         private double k;     // shape
 
         // Derived measures
-        private double constant;
         private double lnconstant;
 
         private bool immutable;
@@ -201,7 +176,6 @@ namespace Accord.Statistics.Distributions.Univariate
             this.theta = theta;
             this.k = k;
 
-            this.constant = 1.0 / (Math.Pow(theta, k) * Gamma.Function(k));
             this.lnconstant = -(k * Math.Log(theta) + Gamma.Log(k));
         }
 
@@ -299,7 +273,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.DoubleRange" /> containing
+        ///   A <see cref="DoubleRange" /> containing
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -358,7 +332,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public override double ProbabilityDensityFunction(double x)
         {
-            return constant * Math.Pow(x, k - 1) * Math.Exp(-x / theta);
+            return Math.Exp(LogProbabilityDensityFunction(x));
         }
 
         /// <summary>
@@ -430,14 +404,38 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public override void Fit(double[] observations, double[] weights, IFittingOptions options)
         {
+            Fit(observations, weights, (GammaOptions)options);
+        }
+
+        /// <summary>
+        ///   Fits the underlying distribution to a given set of observations.
+        /// </summary>
+        /// 
+        /// <param name="observations">The array of observations to fit the model against. The array
+        ///   elements can be either of type double (for univariate data) or
+        ///   type double[] (for multivariate data).</param>
+        /// <param name="weights">The weight vector containing the weight for each of the samples.</param>
+        /// <param name="options">Optional arguments which may be used during fitting, such
+        ///   as regularization constants and additional parameters.</param>
+        ///   
+        /// <remarks>
+        ///   Although both double[] and double[][] arrays are supported,
+        ///   providing a double[] for a multivariate distribution or a
+        ///   double[][] for a univariate distribution may have a negative
+        ///   impact in performance.
+        /// </remarks>
+        /// 
+        public void Fit(double[] observations, double[] weights, GammaOptions options)
+        {
             if (immutable)
                 throw new InvalidOperationException("This object can not be modified.");
 
-            if (options != null)
-                throw new ArgumentException("This method does not accept fitting options.");
-
             if (weights != null)
                 throw new ArgumentException("This distribution does not support weighted samples.");
+
+            // Method from Choi, S.C.; Wette, R. (1969) "Maximum Likelihood Estimation 
+            // of the Parameters of the Gamma Distribution and Their Bias", Technometrics,
+            // 11(4) 683–690
 
             double lnsum = 0;
             for (int i = 0; i < observations.Length; i++)
@@ -453,15 +451,28 @@ namespace Accord.Statistics.Distributions.Univariate
             // initial approximation
             double newK = (3 - s + Math.Sqrt((s - 3) * (s - 3) + 24 * s)) / (12 * s);
 
-            // Use Newton-Raphson approximation
+            double tol = 1e-8;
+            int maxIter = 1000;
+
+            if (options != null)
+            {
+                tol = options.Tolerance;
+                maxIter = options.Iterations;
+            }
+
+            // Use Newton-Raphson update
             double oldK;
 
-            do
+            for (int i = 0; i < maxIter; i++)
             {
                 oldK = newK;
-                newK = oldK - (Math.Log(newK) - Gamma.Digamma(newK) - s) / ((1 / newK) - Gamma.Trigamma(newK));
+                double num = Math.Log(newK) - Gamma.Digamma(newK) - s;
+                double den = (1 / newK) - Gamma.Trigamma(newK);
+                newK = oldK - num / den;
+
+                if (oldK.IsEqual(newK, rtol: tol))
+                    break;
             }
-            while (Math.Abs(oldK - newK) / Math.Abs(oldK) < Double.Epsilon);
 
             double theta = mean / newK;
 
@@ -472,19 +483,15 @@ namespace Accord.Statistics.Distributions.Univariate
         ///   Estimates a new Gamma distribution from a given set of observations.
         /// </summary>
         /// 
-        public static GammaDistribution Estimate(double[] observations)
-        {
-            return Estimate(observations, null);
-        }
-
-        /// <summary>
-        ///   Estimates a new Gamma distribution from a given set of observations.
-        /// </summary>
-        /// 
-        public static GammaDistribution Estimate(double[] observations, double[] weights)
+        public static GammaDistribution Estimate(double[] observations,
+            double[] weights = null, double tol = 1e-8, int iterations = 1000)
         {
             var n = new GammaDistribution();
-            n.Fit(observations, weights, null);
+            n.Fit(observations, weights, new GammaOptions()
+            {
+                Tolerance = tol,
+                Iterations = iterations
+            });
             return n;
         }
 
@@ -509,10 +516,11 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
         /// 
         /// <returns>A random vector of observations drawn from this distribution.</returns>
         /// 
-        public override double[] Generate(int samples)
+        public override double[] Generate(int samples, double[] result)
         {
             return Random(k, theta, samples);
         }
@@ -533,37 +541,51 @@ namespace Accord.Statistics.Distributions.Univariate
         ///   Gamma distribution with the given parameters.
         /// </summary>
         /// 
-        /// <param name="scale">The scale parameter theta.</param>
-        /// <param name="shape">The shape parameter k.</param>
+        /// <param name="scale">The scale parameter theta (or inverse beta).</param>
+        /// <param name="shape">The shape parameter k (or alpha).</param>
         /// <param name="samples">The number of samples to generate.</param>
         ///
         /// <returns>An array of double values sampled from the specified Gamma distribution.</returns>
         /// 
         public static double[] Random(double shape, double scale, int samples)
         {
-            double[] r = new double[samples];
+            return Random(shape, scale, samples, new double[samples]);
+        }
+
+        /// <summary>
+        ///   Generates a random vector of observations from the 
+        ///   Gamma distribution with the given parameters.
+        /// </summary>
+        /// 
+        /// <param name="scale">The scale parameter theta (or inverse beta).</param>
+        /// <param name="shape">The shape parameter k (or alpha).</param>
+        /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
+        ///
+        /// <returns>An array of double values sampled from the specified Gamma distribution.</returns>
+        /// 
+        public static double[] Random(double shape, double scale, int samples, double[] result)
+        {
+            var rand = Accord.Math.Random.Generator.Random;
 
             if (shape < 1)
             {
                 double d = shape + 1.0 - 1.0 / 3.0;
-                double c = 1.0 / Math.Sqrt(9 * d);
+                double c = (1.0 / 3.0) / Math.Sqrt(d);
 
-                for (int i = 0; i < r.Length; i++)
-                {
-                    double U = Accord.Math.Tools.Random.Next();
-                    r[i] = scale * Gamma.Random(d, c) * Math.Pow(U, 1.0 / shape);
-                }
+                for (int i = 0; i < samples; i++)
+                    result[i] = scale * Marsaglia(d, c) * Math.Pow(rand.NextDouble(), 1.0 / shape);
             }
             else
             {
                 double d = shape - 1.0 / 3.0;
-                double c = 1.0 / Math.Sqrt(9 * d);
+                double c = (1.0 / 3.0) / Math.Sqrt(d);
 
-                for (int i = 0; i < r.Length; i++)
-                    r[i] = scale * Gamma.Random(d, c);
+                for (int i = 0; i < samples; i++)
+                    result[i] = scale * Marsaglia(d, c);
             }
 
-            return r;
+            return result;
         }
 
         /// <summary>
@@ -571,8 +593,8 @@ namespace Accord.Statistics.Distributions.Univariate
         ///   Gamma distribution with the given parameters.
         /// </summary>
         /// 
-        /// <param name="scale">The scale parameter theta.</param>
-        /// <param name="shape">The shape parameter k.</param>
+        /// <param name="scale">The scale parameter theta (or inverse beta).</param>
+        /// <param name="shape">The shape parameter k (or alpha).</param>
         /// 
         /// <returns>A random double value sampled from the specified Gamma distribution.</returns>
         /// 
@@ -581,21 +603,62 @@ namespace Accord.Statistics.Distributions.Univariate
             if (shape < 1)
             {
                 double d = shape + 1.0 - 1.0 / 3.0;
-                double c = 1.0 / Math.Sqrt(9 * d);
+                double c = (1.0 / 3.0) / Math.Sqrt(d);
 
-                double U = Accord.Math.Tools.Random.Next();
-                return scale * Gamma.Random(d, c) * Math.Pow(U, 1.0 / shape);
+                double u = Accord.Math.Random.Generator.Random.NextDouble();
+                return scale * Marsaglia(d, c) * Math.Pow(u, 1.0 / shape);
             }
             else
             {
                 double d = shape - 1.0 / 3.0;
-                double c = 1.0 / Math.Sqrt(9 * d);
+                double c = (1.0 / 3.0) / Math.Sqrt(d);
 
-                return scale * Gamma.Random(d, c);
+                return scale * Marsaglia(d, c);
             }
         }
 
+        /// <summary>
+        ///   Random Gamma-distribution number generation 
+        ///   based on Marsaglia's Simple Method (2000).
+        /// </summary>
+        /// 
+        public static double Marsaglia(double d, double c)
+        {
+            var rand = Accord.Math.Random.Generator.Random;
 
+            // References:
+            //
+            // - Marsaglia, G. A Simple Method for Generating Gamma Variables, 2000
+            //
+
+            while (true)
+            {
+                // 2. Generate v = (1+cx)^3 with x normal
+                double x, t, v;
+
+                do
+                {
+                    x = NormalDistribution.Random();
+                    t = (1.0 + c * x);
+                    v = t * t * t;
+                } while (v <= 0);
+
+
+                // 3. Generate uniform U
+                double U = rand.NextDouble();
+
+                // 4. If U < 1-0.0331*x^4 return d*v.
+                double x2 = x * x;
+                if (U < 1 - 0.0331 * x2 * x2)
+                    return d * v;
+
+                // 5. If log(U) < 0.5*x^2 + d*(1-v+log(v)) return d*v.
+                if (Math.Log(U) < 0.5 * x2 + d * (1.0 - v + Math.Log(v)))
+                    return d * v;
+
+                // 6. Goto step 2
+            }
+        }
         #endregion
 
         /// <summary>

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -262,6 +262,25 @@ namespace Accord.Tests.Statistics
             Assert.AreEqual(9.5, quartiles.Max);
             Assert.AreEqual(-1, d1, 1e-15);
             Assert.AreEqual(+1, d2, 1e-15);
+        }
+
+        [Test]
+        public void constant_test()
+        {
+            double[] hours =
+            {
+                0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
+            };
+
+            double mean = Circular.Mean(hours, 0.1);
+            double stdDev = Circular.StandardDeviation(hours, 0);
+            double var = Circular.Variance(hours, 0);
+            double med = Circular.Median(hours, 0.1);
+
+            Assert.AreEqual(0, mean, 1e-15);
+            Assert.AreEqual(Double.NaN, stdDev, 1e-14);
+            Assert.AreEqual(Double.NaN, var, 1e-14);
+            Assert.AreEqual(0, med);
         }
 
     }

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -139,7 +139,7 @@ namespace Accord.Math.Optimization
         }
 
         /// <summary>
-        ///   Creates a new instance of the L-BFGS optimization algorithm.
+        ///   Creates a new <see cref="ResilientBackpropagation"/> function optimizer.
         /// </summary>
         /// 
         /// <param name="function">The function to be optimized.</param>
@@ -150,7 +150,7 @@ namespace Accord.Math.Optimization
         }
 
         /// <summary>
-        ///   Creates a new instance of the L-BFGS optimization algorithm.
+        ///   Creates a new <see cref="ResilientBackpropagation"/> function optimizer.
         /// </summary>
         /// 
         /// <param name="numberOfVariables">The number of free parameters in the function to be optimized.</param>
@@ -161,7 +161,6 @@ namespace Accord.Math.Optimization
             Func<double[], double> function, Func<double[], double[]> gradient)
             : base(numberOfVariables, function, gradient)
         {
-            init(numberOfVariables);
         }
 
         /// <summary>
@@ -173,11 +172,18 @@ namespace Accord.Math.Optimization
         public ResilientBackpropagation(int numberOfVariables)
             : base(numberOfVariables)
         {
-            init(numberOfVariables);
         }
 
-        private void init(int numberOfVariables)
+        /// <summary>
+        /// Called when the <see cref="IOptimizationMethod{TInput, TOutput}.NumberOfVariables" /> property has changed.
+        /// </summary>
+        /// 
+        /// <param name="numberOfVariables">The number of variables.</param>
+        /// 
+        protected override void OnNumberOfVariablesChanged(int numberOfVariables)
         {
+            base.OnNumberOfVariablesChanged(numberOfVariables);
+
             convergence = new RelativeConvergence();
 
             gradient = new double[numberOfVariables];
@@ -187,7 +193,6 @@ namespace Accord.Math.Optimization
             // Initialize steps
             Reset(initialStep);
         }
-
 
         /// <summary>
         ///   Implements the actual optimization algorithm. This
@@ -201,6 +206,8 @@ namespace Accord.Math.Optimization
             do
             {
                 runEpoch();
+                if (Token.IsCancellationRequested)
+                    break;
             }
             while (!convergence.HasConverged);
 
@@ -220,15 +227,20 @@ namespace Accord.Math.Optimization
             // Do the Resilient Backpropagation parameter update
             for (int k = 0; k < parameters.Length; k++)
             {
-                if (Double.IsInfinity(parameters[k])) continue;
+                if (Double.IsInfinity(parameters[k]) || Double.IsNaN(gradient[k]))
+                    continue;
 
-                double S = previousGradient[k] * gradient[k];
+                double g = gradient[k];
+                if (g > 1e100) g = 1e100;
+                if (g < -1e100) g = -1e100;
+
+                double S = previousGradient[k] * g;
 
                 if (S > 0.0)
                 {
                     weightsUpdates[k] = Math.Min(weightsUpdates[k] * etaPlus, deltaMax);
-                    parameters[k] -= Math.Sign(gradient[k]) * weightsUpdates[k];
-                    previousGradient[k] = gradient[k];
+                    parameters[k] -= Math.Sign(g) * weightsUpdates[k];
+                    previousGradient[k] = g;
                 }
                 else if (S < 0.0)
                 {
@@ -237,12 +249,12 @@ namespace Accord.Math.Optimization
                 }
                 else
                 {
-                    parameters[k] -= Math.Sign(gradient[k]) * weightsUpdates[k];
-                    previousGradient[k] = gradient[k];
+                    parameters[k] -= Math.Sign(g) * weightsUpdates[k];
+                    previousGradient[k] = g;
                 }
             }
 
-            System.Diagnostics.Debug.Assert(!parameters.HasNaN());
+            Accord.Diagnostics.Debug.Assert(!parameters.HasNaN());
 
             double value = Function(parameters);
 

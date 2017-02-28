@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -70,7 +70,7 @@ namespace Accord.Tests.Math
         [Test]
         public void lbfgsTest2()
         {
-            Accord.Math.Tools.SetupGenerator(0);
+            Accord.Math.Random.Generator.Seed = 0;
 
             // Suppose we would like to find the minimum of the function
             // 
@@ -162,7 +162,6 @@ namespace Accord.Tests.Math
         }
 
         [Test]
-        [ExpectedException(typeof(InvalidOperationException))]
         public void NoGradientTest()
         {
             BroydenFletcherGoldfarbShanno target = new BroydenFletcherGoldfarbShanno(2)
@@ -170,7 +169,9 @@ namespace Accord.Tests.Math
                 Function = (x) => 0.0
             };
 
-            target.Minimize();
+            Assert.IsTrue(target.Minimize());
+
+            // The optimizer should use finite differences as the gradient
         }
 
         [Test]

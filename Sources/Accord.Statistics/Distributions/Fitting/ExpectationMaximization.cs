@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@ namespace Accord.Statistics.Distributions.Fitting
     using Accord.Math;
     using System;
     using System.Threading.Tasks;
+    using MachineLearning;
 
     /// <summary>
     ///   Expectation Maximization algorithm for mixture model fitting.
@@ -38,7 +39,7 @@ namespace Accord.Statistics.Distributions.Fitting
     ///   which can be used with both univariate or multivariate distribution types.</para>
     /// </remarks>
     /// 
-    public class ExpectationMaximization<TObservation>
+    public class ExpectationMaximization<TObservation> : ParallelLearningBase
     {
 
         /// <summary>
@@ -151,7 +152,10 @@ namespace Accord.Statistics.Distributions.Fitting
                 pdf[i] = (IFittableDistribution<TObservation>)components[i];
 
             // Prepare the iteration
-            Convergence.NewValue = LogLikelihood(pi, pdf, observations, weights, weightSum);
+            Convergence.NewValue = LogLikelihood(pi, pdf, observations, weights, weightSum, ParallelOptions);
+
+            var componentOptions = InnerOptions as IComponentOptions;
+
 
             // Start
             do
@@ -159,7 +163,7 @@ namespace Accord.Statistics.Distributions.Fitting
                 // 2. Expectation: Evaluate the component distributions 
                 //    responsibilities using the current parameter values.
 
-                Parallel.For(0, Gamma.Length, k =>
+                Parallel.For(0, Gamma.Length, ParallelOptions, k =>
                 {
                     double[] gammak = Gamma[k];
                     for (int i = 0; i < observations.Length; i++)
@@ -177,7 +181,7 @@ namespace Accord.Statistics.Distributions.Fitting
 
                 try
                 {
-                    Parallel.For(0, Gamma.Length, k =>
+                    Parallel.For(0, Gamma.Length, ParallelOptions, k =>
                     {
                         double[] gammak = Gamma[k];
 
@@ -220,9 +224,11 @@ namespace Accord.Statistics.Distributions.Fitting
                 for (int i = 0; i < pi.Length; i++)
                     pi[i] /= sumPi;
 
-                // 4. Evaluate the log-likelihood and check for convergence
-                Convergence.NewValue = LogLikelihood(pi, pdf, observations, weights, weightSum);
+                if (componentOptions != null && componentOptions.Postprocessing != null)
+                    componentOptions.Postprocessing(pdf, pi);
 
+                // 4. Evaluate the log-likelihood and check for convergence
+                Convergence.NewValue = LogLikelihood(pi, pdf, observations, weights, weightSum, ParallelOptions);
 
             } while (!Convergence.HasConverged);
 
@@ -247,10 +253,20 @@ namespace Accord.Statistics.Distributions.Fitting
         ///   for a given set of observations.
         /// </summary>
         /// 
-        public static double LogLikelihood(double[] pi, IDistribution<TObservation>[] pdf,
-            TObservation[] observations)
+        public static double LogLikelihood(double[] pi, IDistribution<TObservation>[] pdf, TObservation[] observations)
         {
-            return LogLikelihood(pi, pdf, observations, null, 0);
+            return LogLikelihood(pi, pdf, observations, null, 0, new ParallelOptions());
+        }
+
+        /// <summary>
+        ///   Computes the log-likelihood of the distribution
+        ///   for a given set of observations.
+        /// </summary>
+        /// 
+        public static double LogLikelihood(double[] pi, IDistribution<TObservation>[] pdf,
+            TObservation[] observations, ParallelOptions parallelOptions)
+        {
+            return LogLikelihood(pi, pdf, observations, null, 0, parallelOptions);
         }
 
         /// <summary>
@@ -260,6 +276,17 @@ namespace Accord.Statistics.Distributions.Fitting
         /// 
         public static double LogLikelihood(double[] pi, IDistribution<TObservation>[] pdf,
             TObservation[] observations, double[] weights, double weightSum)
+        {
+            return LogLikelihood(pi, pdf, observations, weights, weightSum, new ParallelOptions());
+        }
+
+        /// <summary>
+        ///   Computes the log-likelihood of the distribution
+        ///   for a given set of observations.
+        /// </summary>
+        /// 
+        public static double LogLikelihood(double[] pi, IDistribution<TObservation>[] pdf,
+            TObservation[] observations, double[] weights, double weightSum, ParallelOptions parallelOptions)
         {
             double logLikelihood = 0.0;
 
@@ -281,20 +308,19 @@ namespace Accord.Statistics.Distributions.Fitting
                 for (int k = 0; k < pi.Length; k++)
                     sum += pi[k] * pdf[k].ProbabilityFunction(x);
 
-                if (sum > 0) 
+                if (sum > 0)
                     logLikelihood += Math.Log(sum) * w;
             }
 #else
             object syncObj = new object();
 
-            Parallel.For(0, observations.Length,
+            Parallel.For(0, observations.Length, parallelOptions,
 
                 () => 0.0,
 
                 (i, status, partial) =>
                 {
                     var x = observations[i];
-
                     double w = 1.0;
 
                     if (weights != null)
@@ -325,11 +351,11 @@ namespace Accord.Statistics.Distributions.Fitting
             );
 #endif
 
-            System.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihood));
+            Accord.Diagnostics.Debug.Assert(!Double.IsNaN(logLikelihood));
 
             if (weights != null)
             {
-                System.Diagnostics.Debug.Assert(weightSum != 0);
+                Accord.Diagnostics.Debug.Assert(weightSum != 0);
 
                 return logLikelihood / weightSum;
             }

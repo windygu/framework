@@ -4,47 +4,29 @@
     <ProjectGuid>{2562C6B4-088E-48AC-B408-15BC99AE6760}</ProjectGuid>
     <RootNamespace>Accord.Tests.IO</RootNamespace>
     <AssemblyName>Accord.Tests.IO</AssemblyName>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <FileAlignment>512</FileAlignment>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <OldToolsVersion>3.5</OldToolsVersion>
-    <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
-    <TargetFrameworkProfile />
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>Accord.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
+  <Import Project="$(SolutionDir)..\Unit Tests\Accord.Tests.targets" />
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>$(SolutionDir)..\Unit Tests\bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET35|AnyCPU' ">
-    <OutputPath>$(SolutionDir)..\Unit Tests\bin\Release\net35\</OutputPath>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net35|AnyCPU' ">
     <DefineConstants>TRACE;NET35</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET40|AnyCPU' ">
-    <OutputPath>$(SolutionDir)..\Unit Tests\bin\Release\net40\</OutputPath>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net40|AnyCPU' ">
     <DefineConstants>TRACE;NET40</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'NET45|AnyCPU' ">
-    <OutputPath>$(SolutionDir)..\Unit Tests\bin\Release\net45\</OutputPath>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net45|AnyCPU' ">
     <DefineConstants>TRACE;NET45</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'net46|AnyCPU' ">
+    <DefineConstants>TRACE;NET46</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'mono|AnyCPU' ">
+    <DefineConstants>TRACE;MONO</DefineConstants>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="nunit.framework">
@@ -72,12 +54,15 @@
     <Compile Include="CsvReaderTest.cs" />
     <Compile Include="IdxReaderTest.cs" />
     <Compile Include="ExcelReaderTest.cs" />
+    <Compile Include="NumPyWriterTest.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="SparseWriterTest.cs" />
     <Compile Include="SparseReaderTest.cs" />
+    <Compile Include="NumPyReaderTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -92,6 +77,10 @@
     <ProjectReference Include="..\..\Sources\Accord.IO\Accord.IO.csproj">
       <Project>{63184EBD-6B28-4066-AAEE-5B99431E31F4}</Project>
       <Name>Accord.IO</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Sources\Accord.Math\Accord.Math.csproj">
+      <Project>{f718e9a8-db62-4785-8c49-4333a60d256a}</Project>
+      <Name>Accord.Math</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -161,6 +150,11 @@
     <None Include="app.config" />
     <None Include="Resources\liblinear\a9a.test" />
     <None Include="Resources\liblinear\a9a.train" />
+    <None Include="Resources\numpy\npy_bool.npy" />
+    <None Include="Resources\numpy\npy_byte.npy" />
+    <None Include="Resources\numpy\npy_integer.npy" />
+    <None Include="Resources\numpy\npy_strings.npy" />
+    <None Include="Resources\numpy\npy_strings_var.npy" />
     <None Include="Resources\sample.xls">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -147,7 +147,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.IntRange" /> containing
+        ///   A <see cref="IntRange" /> containing
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -170,13 +170,13 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public override double DistributionFunction(int k)
         {
-            if (k < 0) 
+            if (k < 0)
                 return 0;
 
             if (k == int.MaxValue)
                 return 1;
 
-            return 1.0 - Beta.Incomplete(k + 1, r, p);
+            return 1.0 - Beta.Incomplete(k + 1, r, 1 - p);
         }
 
         /// <summary>
@@ -198,7 +198,8 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public override double ProbabilityMassFunction(int k)
         {
-            if (k < 0) return 0;
+            if (k < 0)
+                return 0;
             return Special.Binomial(k + r - 1, r - 1) * Math.Pow(1 - p, k) * Math.Pow(p, r);
         }
 
@@ -221,7 +222,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public override double LogProbabilityMassFunction(int k)
         {
-            if (k <= 0) 
+            if (k <= 0)
                 return Double.NegativeInfinity;
 
             return Special.LogBinomial(k + r - 1, r - 1) + k * Math.Log(1 - p) + r * Math.Log(p);

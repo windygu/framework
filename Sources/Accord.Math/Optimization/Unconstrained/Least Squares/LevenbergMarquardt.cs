@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ namespace Accord.Math.Optimization
     using System.Threading.Tasks;
     using Accord.Math;
     using Accord.Math.Decompositions;
+    using System.Threading;
 
     /// <summary>
     ///   Levenberg-Marquardt algorithm for solving Least-Squares problems.
@@ -85,6 +86,23 @@ namespace Accord.Math.Optimization
         /// </value>
         /// 
         public LeastSquaresGradientFunction Gradient { get; set; }
+
+        /// <summary>
+        ///   Gets or sets parallelization options.
+        /// </summary>
+        /// 
+        public ParallelOptions ParallelOptions { get; set; }
+
+        /// <summary>
+        ///   Gets or sets a cancellation token that can be used to
+        ///   stop the learning algorithm while it is running.
+        /// </summary>
+        /// 
+        public CancellationToken Token
+        {
+            get { return ParallelOptions.CancellationToken; }
+            set { ParallelOptions.CancellationToken = value; }
+        }
 
         /// <summary>
         ///   Gets the solution found, the values of the parameters which
@@ -200,6 +218,12 @@ namespace Accord.Math.Optimization
             get { return decomposition.InverseDiagonal().Sqrt(); }
         }
 
+        /// <summary>
+        /// Gets the value at the solution found. This should be
+        /// the minimum value found for the objective function.
+        /// </summary>
+        /// 
+        public double Value { get; set; }
 
         /// <summary>
         ///   Initializes a new instance of the <see cref="LevenbergMarquardt"/> class.
@@ -220,6 +244,8 @@ namespace Accord.Math.Optimization
             this.hessian = new double[numberOfParameters][];
             for (int i = 0; i < hessian.Length; i++)
                 hessian[i] = new double[numberOfParameters];
+
+            this.ParallelOptions = new ParallelOptions();
         }
 
 
@@ -275,7 +301,7 @@ namespace Accord.Math.Optimization
                     continue;
 
                 int B = (s == Blocks) ? finalBlock : blockSize;
-                int[] block = Matrix.Indices(s * blockSize, s * blockSize + B);
+                int[] block = Vector.Range(s * blockSize, s * blockSize + B);
 
                 // Compute the partial residuals vector
                 sumOfSquaredErrors += computeErrors(inputs, outputs, block);
@@ -303,7 +329,7 @@ namespace Accord.Math.Optimization
                 // Compute Quasi-Hessian Matrix approximation
                 //  using the outer product Jacobian (H ~ J'J)
                 //
-                Parallel.For(0, jacobian.Length, i =>
+                Parallel.For(0, jacobian.Length, ParallelOptions, i =>
                 {
                     double[] ji = jacobian[i];
                     double[] hi = hessian[i];
@@ -351,6 +377,9 @@ namespace Accord.Math.Optimization
             //  (or where the objective function is smaller)
             while (current >= objective && lambda < lambdaMax)
             {
+                if (Token.IsCancellationRequested)
+                    break;
+
                 lambda *= v;
 
                 // Update diagonal (Levenberg-Marquardt)
@@ -364,7 +393,7 @@ namespace Accord.Math.Optimization
 
 
                 // Check if the decomposition exists
-                if (decomposition.IsNotDefined)
+                if (decomposition.IsUndefined)
                 {
                     // The Hessian is singular. Continue to the next
                     // iteration until the diagonal update transforms
@@ -397,7 +426,7 @@ namespace Accord.Math.Optimization
             lambda /= v;
 
 
-            return sumOfSquaredErrors;
+            return Value = sumOfSquaredErrors;
         }
 
         /// <summary>

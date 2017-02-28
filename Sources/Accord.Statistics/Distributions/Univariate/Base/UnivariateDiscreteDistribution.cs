@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ namespace Accord.Statistics.Distributions.Univariate
     using Accord.Statistics.Distributions.Fitting;
     using AForge;
     using Accord.Math.Optimization;
+    using Accord.Math.Random;
 
     /// <summary>
     ///   Abstract class for univariate discrete probability distributions.
@@ -67,7 +68,8 @@ namespace Accord.Statistics.Distributions.Univariate
     public abstract class UnivariateDiscreteDistribution : DistributionBase,
         IUnivariateDistribution<int>, IUnivariateDistribution,
         IUnivariateDistribution<double>, IDistribution<double[]>,
-        IDistribution<double>, ISampleableDistribution<double>, ISampleableDistribution<int>,
+        IDistribution<double>,
+        ISampleableDistribution<double>, ISampleableDistribution<int>,
         IFormattable
     {
 
@@ -112,7 +114,7 @@ namespace Accord.Statistics.Distributions.Univariate
         ///   Gets the support interval for this distribution.
         /// </summary>
         /// 
-        /// <value>A <see cref="AForge.IntRange"/> containing
+        /// <value>A <see cref="IntRange"/> containing
         ///  the support interval for this distribution.</value>
         ///  
         public abstract IntRange Support { get; }
@@ -226,7 +228,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.DoubleRange" /> containing 
+        ///   A <see cref="DoubleRange" /> containing 
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -240,7 +242,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.DoubleRange" /> containing 
+        ///   A <see cref="DoubleRange" /> containing 
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -254,7 +256,7 @@ namespace Accord.Statistics.Distributions.Univariate
         /// </summary>
         /// 
         /// <value>
-        ///   A <see cref="AForge.DoubleRange" /> containing 
+        ///   A <see cref="DoubleRange" /> containing 
         ///   the support interval for this distribution.
         /// </value>
         /// 
@@ -397,6 +399,11 @@ namespace Accord.Statistics.Distributions.Univariate
             return CumulativeHazardFunction((int)x);
         }
 
+        double IUnivariateDistribution.LogCumulativeHazardFunction(double x)
+        {
+            return LogCumulativeHazardFunction((int)x);
+        }
+
         void IDistribution.Fit(Array observations)
         {
             (this as IDistribution).Fit(observations, (IFittingOptions)null);
@@ -429,7 +436,23 @@ namespace Accord.Statistics.Distributions.Univariate
             double[][] multivariate = observations as double[][];
             if (multivariate != null)
             {
-                Fit(Matrix.Concatenate(multivariate), weights, options);
+                var concat = Matrix.Concatenate(multivariate);
+                Fit(concat, weights, options);
+                return;
+            }
+
+            int[] iunivariate = observations as int[];
+            if (iunivariate != null)
+            {
+                Fit(iunivariate, weights, options);
+                return;
+            }
+
+            int[][] imultivariate = observations as int[][];
+            if (imultivariate != null)
+            {
+                var concat = Matrix.Concatenate(imultivariate);
+                Fit(concat, weights, options);
                 return;
             }
 
@@ -449,6 +472,20 @@ namespace Accord.Statistics.Distributions.Univariate
             if (multivariate != null)
             {
                 Fit(Matrix.Concatenate(multivariate), weights, options);
+                return;
+            }
+
+            int[] iunivariate = observations as int[];
+            if (iunivariate != null)
+            {
+                Fit(iunivariate, weights, options);
+                return;
+            }
+
+            int[][] imultivariate = observations as int[][];
+            if (imultivariate != null)
+            {
+                Fit(Matrix.Concatenate(imultivariate), weights, options);
                 return;
             }
 
@@ -649,38 +686,41 @@ namespace Accord.Statistics.Distributions.Univariate
                     }
 
                     // completely unbounded
-                    {
-                        int lower = -1;
-                        int upper = +1;
-
-                        double f = DistributionFunction(0);
-
-                        if (f > p)
-                        {
-                            while (f > p)
-                            {
-                                upper = lower;
-                                lower = 2 * lower - 1;
-                                f = DistributionFunction(lower);
-                            }
-                        }
-                        else
-                        {
-                            while (f < p)
-                            {
-                                lower = upper;
-                                upper = 2 * upper + 1;
-                                f = DistributionFunction(upper);
-                            }
-                        }
-
-                        return new BinarySearch(DistributionFunction, lower, upper).Find(p);
-                    }
+                    return UnboundedBaseInverseDistributionFunction(p, lower: -1, upper: +1, start: 0);
                 }
             }
             catch (OverflowException)
             {
                 return 0;
+            }
+        }
+
+        private int UnboundedBaseInverseDistributionFunction(double p, int lower, int upper, int start)
+        {
+            checked
+            {
+                double f = DistributionFunction(start);
+
+                if (f > p)
+                {
+                    while (f > p)
+                    {
+                        upper = lower;
+                        lower = 2 * lower - 1;
+                        f = DistributionFunction(lower);
+                    }
+                }
+                else
+                {
+                    while (f < p)
+                    {
+                        lower = upper;
+                        upper = 2 * upper + 1;
+                        f = DistributionFunction(upper);
+                    }
+                }
+
+                return new BinarySearch(DistributionFunction, lower, upper).Find(p);
             }
         }
 
@@ -840,6 +880,23 @@ namespace Accord.Statistics.Distributions.Univariate
         public virtual double CumulativeHazardFunction(int x)
         {
             return -Math.Log(ComplementaryDistributionFunction(x));
+        }
+
+        /// <summary>
+        ///   Gets the log-cumulative hazard function for this
+        ///   distribution evaluated at point <c>x</c>.
+        /// </summary>
+        /// 
+        /// <param name="x">
+        ///   A single point in the distribution range.</param>
+        /// 
+        /// <returns>
+        ///   The logarithm of the cumulative hazard function <c>H(x)</c>  
+        ///   evaluated at <c>x</c> in the current distribution.</returns>
+        /// 
+        public virtual double LogCumulativeHazardFunction(int x)
+        {
+            return Math.Log(-Math.Log(ComplementaryDistributionFunction(x)));
         }
 
         /// <summary>
@@ -1032,14 +1089,10 @@ namespace Accord.Statistics.Distributions.Univariate
         ///   
         public virtual void Fit(int[] observations, int[] weights, IFittingOptions options)
         {
-            if (weights == null)
-            {
-                Fit(observations, (double[])null, options);
-            }
-            else
-            {
+            if (weights != null)
                 throw new NotSupportedException();
-            }
+
+            Fit(observations, (double[])null, options);
         }
 
 
@@ -1050,19 +1103,43 @@ namespace Accord.Statistics.Distributions.Univariate
         /// <param name="samples">The number of samples to generate.</param>
         /// <returns>A random vector of observations drawn from this distribution.</returns>
         /// 
-        public virtual int[] Generate(int samples)
+        public int[] Generate(int samples)
         {
-            var random = Accord.Math.Tools.Random;
+            return Generate(samples, new int[samples]);
+        }
 
-            int[] s = new int[samples];
+        /// <summary>
+        ///   Generates a random vector of observations from the current distribution.
+        /// </summary>
+        /// 
+        /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
+        /// 
+        /// <returns>A random vector of observations drawn from this distribution.</returns>
+        /// 
+        public virtual int[] Generate(int samples, int[] result)
+        {
+            var random = Accord.Math.Random.Generator.Random;
+            for (int i = 0; i < samples; i++)
+                result[i] = InverseDistributionFunction(random.NextDouble());
+            return result;
+        }
 
-            for (int i = 0; i < s.Length; i++)
-            {
-                double u = random.NextDouble();
-                s[i] = InverseDistributionFunction(u);
-            }
-
-            return s;
+        /// <summary>
+        ///   Generates a random vector of observations from the current distribution.
+        /// </summary>
+        /// 
+        /// <param name="samples">The number of samples to generate.</param>
+        /// <param name="result">The location where to store the samples.</param>
+        ///
+        /// <returns>A random vector of observations drawn from this distribution.</returns>
+        /// 
+        public virtual double[] Generate(int samples, double[] result)
+        {
+            var random = Accord.Math.Random.Generator.Random;
+            for (int i = 0; i < samples; i++)
+                result[i] = InverseDistributionFunction(random.NextDouble());
+            return result;
         }
 
         /// <summary>
@@ -1073,15 +1150,25 @@ namespace Accord.Statistics.Distributions.Univariate
         /// 
         public virtual int Generate()
         {
-            return InverseDistributionFunction(Accord.Math.Tools.Random.NextDouble());
+            return InverseDistributionFunction(Accord.Math.Random.Generator.Random.NextDouble());
         }
 
-        double[] ISampleableDistribution<double>.Generate(int samples)
+        double[] IRandomNumberGenerator<double>.Generate(int samples)
         {
-            return Generate(samples).ToDouble();
+            return Generate(samples, new double[samples]);
         }
 
-        double ISampleableDistribution<double>.Generate()
+        double ISampleableDistribution<double>.Generate(double result)
+        {
+            return Generate();
+        }
+
+        int ISampleableDistribution<int>.Generate(int result)
+        {
+            return Generate();
+        }
+
+        double IRandomNumberGenerator<double>.Generate()
         {
             return (double)Generate();
         }

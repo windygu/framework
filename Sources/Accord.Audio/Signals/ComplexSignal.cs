@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -188,6 +188,15 @@ namespace Accord.Audio
         }
 
         /// <summary>
+        ///   Converts the complex signal to a complex array.
+        /// </summary>
+        /// 
+        public Complex[] ToArray(int channel)
+        {
+            return GetChannel(channel);
+        }
+
+        /// <summary>
         ///   Extracts a channel from the signal.
         /// </summary>
         /// 
@@ -357,7 +366,7 @@ namespace Accord.Audio
             int channels = array.GetLength(1);
 
             // check signal size
-            if (!AForge.Math.Tools.IsPowerOf2(samples))
+            if (!Accord.Math.Tools.IsPowerOf2(samples))
             {
                 throw new InvalidSignalPropertiesException("Signals length should be a power of 2.");
             }
@@ -407,7 +416,7 @@ namespace Accord.Audio
             int channels = array.GetLength(1);
 
             // check signal size
-            if (!AForge.Math.Tools.IsPowerOf2(samples))
+            if (!Accord.Math.Tools.IsPowerOf2(samples))
             {
                 throw new InvalidSignalPropertiesException("Signals length should be a power of 2.");
             }

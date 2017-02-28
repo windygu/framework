@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -357,42 +357,6 @@ namespace Accord.IO
             return dataset;
         }
 
-
-        private bool unquote(string str, char quote, out string unquoted)
-        {
-            unquoted = str;
-
-            if (String.IsNullOrEmpty(str))
-                return false;
-
-            int length = str.Length;
-            if (length > 1 && str[0] == quote && str[length - 1] == quote)
-            {
-                unquoted = str.Substring(1, length - 2);
-                return true;
-            }
-
-            return false;
-        }
-
     }
 
-
-
-#if NET35
-    internal static class Extensions
-    {
-
-        internal static void CopyTo(this Stream input, Stream output)
-        {
-            byte[] buffer = new byte[16 * 1024]; 
-
-            int bytesRead;
-            while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                output.Write(buffer, 0, bytesRead);
-            }
-        }
-    }
-#endif
 }

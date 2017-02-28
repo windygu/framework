@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@ namespace Accord.Tests.MachineLearning
     using Accord.MachineLearning.DecisionTrees.Learning;
     using Accord.MachineLearning.DecisionTrees.Rules;
     using Accord.Math;
+    using Accord.Math.Optimization.Losses;
     using Accord.Statistics.Filters;
     using Accord.Tests.MachineLearning.Properties;
     using NUnit.Framework;
@@ -142,6 +143,7 @@ namespace Accord.Tests.MachineLearning
         [Test]
         public void LargeRunTest()
         {
+            #region doc_nursery
             // This example uses the Nursery Database available from the University of
             // California Irvine repository of machine learning databases, available at
             //
@@ -161,7 +163,7 @@ namespace Accord.Tests.MachineLearning
             //   making DEX (M. Bohanec, V. Rajkovic: Expert system for decision
             //   making. Sistemica 1(1), pp. 145-157, 1990.).
             //
-
+ 
             // Let's begin by loading the raw data. This string variable contains
             // the contents of the nursery.data file as a single, continuous text.
             //
@@ -187,7 +189,7 @@ namespace Accord.Tests.MachineLearning
             table.Columns.Add(outputColumn);
 
             string[] lines = nurseryData.Split(
-                new[] { Environment.NewLine }, StringSplitOptions.None);
+                new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
                 table.Rows.Add(line.Split(','));
@@ -207,27 +209,34 @@ namespace Accord.Tests.MachineLearning
             double[][] inputs = symbols.ToArray(inputColumns);
             int[] outputs = symbols.ToArray<int>(outputColumn);
 
-            // From now on, we can start creating the decision tree.
-            //
-            var attributes = DecisionVariable.FromCodebook(codebook, inputColumns);
-            DecisionTree tree = new DecisionTree(attributes, classes: 5);
+            // We can either specify the decision attributes we want
+            // manually, or we can ask the codebook to do it for us:
+            DecisionVariable[] attributes = DecisionVariable.FromCodebook(codebook, inputColumns);
 
+            // Now, let's create the C4.5 algorithm:
+            C45Learning c45 = new C45Learning(attributes);
 
-            // Now, let's create the C4.5 algorithm
-            C45Learning c45 = new C45Learning(tree);
+            // and induce a decision tree from the data:
+            DecisionTree tree = c45.Learn(inputs, outputs);
 
-            // and learn a decision tree. The value of
-            //   the error variable below should be 0.
-            //
-            double error = c45.Run(inputs, outputs);
+            // To get the estimated class labels, we can use
+            int[] predicted = tree.Decide(inputs);
 
+            // And the classification error (of 0.0) can be computed as 
+            double error = new ZeroOneLoss(outputs).Loss(tree.Decide(inputs));
 
             // To compute a decision for one of the input points,
             //   such as the 25-th example in the set, we can use
             //
-            int y = tree.Compute(inputs[25]);
+            int y = tree.Decide(inputs[25]); // should be 1
+            #endregion
+
+            Assert.AreEqual(12960, lines.Length);
+            Assert.AreEqual("usual,proper,complete,1,convenient,convenient,nonprob,recommended,recommend", lines[0]);
+            Assert.AreEqual("great_pret,very_crit,foster,more,critical,inconv,problematic,not_recom,not_recom", lines[lines.Length - 1]);
 
             Assert.AreEqual(0, error);
+            Assert.AreEqual(1, y);
 
             for (int i = 0; i < inputs.Length; i++)
             {
@@ -237,9 +246,8 @@ namespace Accord.Tests.MachineLearning
                 Assert.AreEqual(expected, actual);
             }
 
-
 #if !NET35
-
+            #region doc_nursery_native
             // Finally, we can also convert our tree to a native
             // function, improving efficiency considerably, with
             //
@@ -248,7 +256,9 @@ namespace Accord.Tests.MachineLearning
             // Again, to compute a new decision, we can just use
             //
             int z = func(inputs[25]);
+            #endregion
 
+            Assert.AreEqual(z, y);
 
             for (int i = 0; i < inputs.Length; i++)
             {
@@ -392,7 +402,7 @@ namespace Accord.Tests.MachineLearning
         {
             double[,] random = Matrix.Random(1000, 10, 0.0, 1.0);
 
-            double[][] samples = random.ToArray();
+            double[][] samples = random.ToJagged();
             int[] outputs = new int[1000];
 
             for (int i = 0; i < samples.Length; i++)
@@ -423,8 +433,8 @@ namespace Accord.Tests.MachineLearning
         {
             Accord.Math.Tools.SetupGenerator(0);
 
-            double[][] dataSamples = Matrix.Random(500, 3, 0, 10).ToArray();
-            int[] target = Matrix.Random(500, 1, 0, 2).ToInt32().GetColumn(0);
+            double[][] dataSamples = Matrix.Random(500, 3, 0.0, 10.0).ToJagged();
+            int[] target = Matrix.Random(500, 1, 0.0, 2.0).ToInt32().GetColumn(0);
 
             DecisionVariable[] features =
             {
@@ -474,7 +484,7 @@ namespace Accord.Tests.MachineLearning
             bool thrown = false;
 
             try { double error = teacher.Run(samples, outputs); }
-            catch (ArgumentNullException ) { thrown = true; }
+            catch (ArgumentNullException) { thrown = true; }
 
             Assert.IsTrue(thrown);
         }
@@ -482,20 +492,98 @@ namespace Accord.Tests.MachineLearning
         [Test]
         public void IrisDatasetTest()
         {
-            string[][] text = Resources.iris_data.Split(
-                new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Apply(x => x.Split(','));
+            #region doc_iris
+            // In this example, we will process the famous Fisher's Iris dataset in 
+            // which the task is to classify weather the features of an Iris flower 
+            // belongs to an Iris setosa, an Iris versicolor, or an Iris virginica:
+            //
+            //  - https://en.wikipedia.org/wiki/Iris_flower_data_set
+            //
 
-            double[][] inputs = new double[text.Length][];
-            for (int i = 0; i < inputs.Length; i++)
-                inputs[i] = text[i].Submatrix(4).Convert(Double.Parse);
+            // First, let's load the dataset into an array of text that we can process
+            string[][] text = Resources.iris_data.Split(new[] { "\r\n" },
+                StringSplitOptions.RemoveEmptyEntries).Apply(x => x.Split(','));
+
+            // The first four columns contain the flower features
+            double[][] inputs = text.GetColumns(0, 1, 2, 3).To<double[][]>();
+
+            // The last column contains the expected flower type
+            string[] labels = text.GetColumn(4);
+
+            // Since the labels are represented as text, the first step is to convert
+            // those text labels into integer class labels, so we can process them
+            // more easily. For this, we will create a codebook to encode class labels:
+            //
+            var codebook = new Codification("Output", labels);
+
+            // With the codebook, we can convert the labels:
+            int[] outputs = codebook.Translate("Output", labels);
+
+            // Let's declare the names of our input variables:
+            DecisionVariable[] features =
+            {
+                new DecisionVariable("sepal length", DecisionVariableKind.Continuous), 
+                new DecisionVariable("sepal width", DecisionVariableKind.Continuous), 
+                new DecisionVariable("petal length", DecisionVariableKind.Continuous), 
+                new DecisionVariable("petal width", DecisionVariableKind.Continuous), 
+            };
+
+            // Now, we can finally create our tree for the 3 classes:
+            var tree = new DecisionTree(inputs: features, classes: 3);
+
+            // And we can use the C4.5 for learning:
+            var teacher = new C45Learning(tree);
+
+            // And finally induce the tree:
+            teacher.Learn(inputs, outputs);
+
+            // To get the estimated class labels, we can use
+            int[] predicted = tree.Decide(inputs);
+
+            // And the classification error (of 0.0266) can be computed as 
+            double error = new ZeroOneLoss(outputs).Loss(tree.Decide(inputs));
+
+            // Moreover, we may decide to convert our tree to a set of rules:
+            DecisionSet rules = tree.ToRules();
+
+            // And using the codebook, we can inspect the tree reasoning:
+            string ruleText = rules.ToString(codebook, "Output",
+                System.Globalization.CultureInfo.InvariantCulture);
+
+            // The output is:
+            string expected = @"Iris-setosa =: (petal length <= 2.45)
+Iris-versicolor =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (sepal width <= 2.85)
+Iris-versicolor =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (sepal width > 2.85)
+Iris-versicolor =: (petal length > 2.45) && (petal width > 1.75) && (sepal length <= 5.95) && (sepal width > 3.05)
+Iris-virginica =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length > 7.05)
+Iris-virginica =: (petal length > 2.45) && (petal width > 1.75) && (sepal length > 5.95)
+Iris-virginica =: (petal length > 2.45) && (petal width > 1.75) && (sepal length <= 5.95) && (sepal width <= 3.05)
+";
+            #endregion
+            expected = expected.Replace("\r\n", Environment.NewLine);
+
+            Assert.AreEqual(0.026666666666666668, error, 1e-10);
+            Assert.AreEqual(4, tree.NumberOfInputs);
+            Assert.AreEqual(3, tree.NumberOfOutputs);
+
+            double newError = ComputeError(rules, inputs, outputs);
+            Assert.AreEqual(0.026666666666666668, newError, 1e-10);
+            Assert.AreEqual(expected, ruleText);
+        }
+
+        [Test, Timeout(30 * 1000)]
+        public void iris_new_method_create_tree()
+        {
+            string[][] text = Resources.iris_data.Split(new[] { "\r\n" },
+                StringSplitOptions.RemoveEmptyEntries).Apply(x => x.Split(','));
+
+            double[][] inputs = text.GetColumns(0, 1, 2, 3).To<double[][]>();
 
             string[] labels = text.GetColumn(4);
 
-            Codification codebook = new Codification("Label", labels);
+            var codebook = new Codification("Output", labels);
 
-            int[] outputs = codebook.Translate("Label", labels);
-
+            int[] outputs = codebook.Translate("Output", labels);
 
             DecisionVariable[] features =
             {
@@ -505,37 +593,132 @@ namespace Accord.Tests.MachineLearning
                 new DecisionVariable("petal width", DecisionVariableKind.Continuous), 
             };
 
+            var teacher = new C45Learning(features);
 
-            DecisionTree tree = new DecisionTree(features, codebook.Columns[0].Symbols);
+            var tree = teacher.Learn(inputs, outputs);
+            Assert.AreEqual(4, tree.NumberOfInputs);
+            Assert.AreEqual(3, tree.NumberOfOutputs);
 
-            C45Learning teacher = new C45Learning(tree);
 
-            double error = teacher.Run(inputs, outputs);
-            Assert.AreEqual(0.026666666666666668, error, 1e-10);
+            // To get the estimated class labels, we can use
+            int[] predicted = tree.Decide(inputs);
 
+            // And the classification error can be computed as 
+            double error = new ZeroOneLoss(outputs) // 0.0266
+            {
+                Mean = true
+            }.Loss(tree.Decide(inputs));
+
+            // Moreover, we may decide to convert our tree to a set of rules:
             DecisionSet rules = tree.ToRules();
+
+            // And using the codebook, we can inspect the tree reasoning:
+            string ruleText = rules.ToString(codebook, "Output",
+                System.Globalization.CultureInfo.InvariantCulture);
+
+            // The output is:
+            string expected = @"Iris-setosa =: (petal length <= 2.45)
+Iris-versicolor =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (sepal width <= 2.85)
+Iris-versicolor =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (sepal width > 2.85)
+Iris-versicolor =: (petal length > 2.45) && (petal width > 1.75) && (sepal length <= 5.95) && (sepal width > 3.05)
+Iris-virginica =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length > 7.05)
+Iris-virginica =: (petal length > 2.45) && (petal width > 1.75) && (sepal length > 5.95)
+Iris-virginica =: (petal length > 2.45) && (petal width > 1.75) && (sepal length <= 5.95) && (sepal width <= 3.05)
+";
+            expected = expected.Replace("\r\n", Environment.NewLine);
+
+            Assert.AreEqual(0.026666666666666668, error, 1e-10);
 
             double newError = ComputeError(rules, inputs, outputs);
             Assert.AreEqual(0.026666666666666668, newError, 1e-10);
+            Assert.AreEqual(expected, ruleText);
+        }
 
-            string ruleText = rules.ToString(codebook, 
+        [Test]
+        public void new_method_create_tree()
+        {
+            #region doc_simplest
+            // In this example, we will process the famous Fisher's Iris dataset in 
+            // which the task is to classify weather the features of an Iris flower 
+            // belongs to an Iris setosa, an Iris versicolor, or an Iris virginica:
+            //
+            //  - https://en.wikipedia.org/wiki/Iris_flower_data_set
+            //
+
+            // First, let's load the dataset into an array of text that we can process
+            string[][] text = Resources.iris_data.Split(new[] { "\r\n" },
+                StringSplitOptions.RemoveEmptyEntries).Apply(x => x.Split(','));
+
+            // The first four columns contain the flower features
+            double[][] inputs = text.GetColumns(0, 1, 2, 3).To<double[][]>();
+
+            // The last column contains the expected flower type
+            string[] labels = text.GetColumn(4);
+
+            // Since the labels are represented as text, the first step is to convert
+            // those text labels into integer class labels, so we can process them
+            // more easily. For this, we will create a codebook to encode class labels:
+            //
+            var codebook = new Codification("Output", labels);
+
+            // With the codebook, we can convert the labels:
+            int[] outputs = codebook.Translate("Output", labels);
+
+            // And we can use the C4.5 for learning:
+            C45Learning teacher = new C45Learning();
+
+            // Finally induce the tree from the data:
+            var tree = teacher.Learn(inputs, outputs);
+
+            // To get the estimated class labels, we can use
+            int[] predicted = tree.Decide(inputs);
+
+            // And the classification error (of 0.0266) can be computed as 
+            double error = new ZeroOneLoss(outputs).Loss(tree.Decide(inputs));
+
+            // Moreover, we may decide to convert our tree to a set of rules:
+            DecisionSet rules = tree.ToRules();
+
+            // And using the codebook, we can inspect the tree reasoning:
+            string ruleText = rules.ToString(codebook, "Output",
                 System.Globalization.CultureInfo.InvariantCulture);
 
-            // TODO: implement this assertion properly, actually checking
-            // the text contents once the feature is completely finished.
-            Assert.AreEqual(596, ruleText.Length);
+            // The output is:
+            string expected = @"Iris-setosa =: (2 <= 2.45)
+Iris-versicolor =: (2 > 2.45) && (3 <= 1.75) && (0 <= 7.05) && (1 <= 2.85)
+Iris-versicolor =: (2 > 2.45) && (3 <= 1.75) && (0 <= 7.05) && (1 > 2.85)
+Iris-versicolor =: (2 > 2.45) && (3 > 1.75) && (0 <= 5.95) && (1 > 3.05)
+Iris-virginica =: (2 > 2.45) && (3 <= 1.75) && (0 > 7.05)
+Iris-virginica =: (2 > 2.45) && (3 > 1.75) && (0 > 5.95)
+Iris-virginica =: (2 > 2.45) && (3 > 1.75) && (0 <= 5.95) && (1 <= 3.05)
+";
+            #endregion
+
+            expected = expected.Replace("\r\n", Environment.NewLine);
+
+            Assert.AreEqual(0.026666666666666668, error, 1e-10);
+
+            double newError = ComputeError(rules, inputs, outputs);
+            Assert.AreEqual(0.026666666666666668, newError, 1e-10);
+            Assert.AreEqual(expected, ruleText);
         }
+
 
         [Test]
         public void AttributeReuseTest1()
         {
-            string[][] text = Resources.iris_data.Split(
-                new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            string[][] text = Resources.iris_data
+                .Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries)
                 .Apply(x => x.Split(','));
+
+            Assert.AreEqual(150, text.Rows());
+            Assert.AreEqual(5, text.Columns());
+            Assert.AreEqual("Iris-setosa", text[0].Get(-1));
+            Assert.AreEqual("Iris-virginica", text.Get(-1).Get(-1));
 
             double[][] inputs = new double[text.Length][];
             for (int i = 0; i < inputs.Length; i++)
-                inputs[i] = text[i].Submatrix(4).Convert(Double.Parse);
+                inputs[i] = text[i].First(4).Convert(s => Double.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
 
             string[] labels = text.GetColumn(4);
 
@@ -570,9 +753,17 @@ namespace Accord.Tests.MachineLearning
             string ruleText = rules.ToString(codebook,
                 System.Globalization.CultureInfo.InvariantCulture);
 
-            // TODO: implement this assertion properly, actually checking
-            // the text contents once the feature is completely finished.
-            Assert.AreEqual(600, ruleText.Length);
+            string expected = @"0 =: (petal length <= 2.45)
+1 =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (petal length <= 4.95)
+1 =: (petal length > 2.45) && (petal width > 1.75) && (petal length <= 4.85) && (sepal length <= 5.95)
+2 =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length > 7.05)
+2 =: (petal length > 2.45) && (petal width > 1.75) && (petal length > 4.85)
+2 =: (petal length > 2.45) && (petal width <= 1.75) && (sepal length <= 7.05) && (petal length > 4.95)
+2 =: (petal length > 2.45) && (petal width > 1.75) && (petal length <= 4.85) && (sepal length > 5.95)
+";
+            expected = expected.Replace("\r\n", Environment.NewLine);
+
+            Assert.AreEqual(expected, ruleText);
         }
 
         public double ComputeError(DecisionSet rules, double[][] inputs, int[] outputs)
@@ -585,6 +776,68 @@ namespace Accord.Tests.MachineLearning
             }
 
             return (double)miss / inputs.Length;
+        }
+
+        [Test]
+        public void same_input_different_output_minimal()
+        {
+            double[][] inputs = new double[][] {
+                new double[] { 0 },
+                new double[] { 0 }
+            };
+
+            int[] outputs = new int[] {
+                1,
+                0
+            };
+
+
+            DecisionVariable[] variables = { new DecisionVariable("x", DecisionVariableKind.Continuous) };
+
+            DecisionTree decisionTree = new DecisionTree(variables, 2);
+            C45Learning c45Learning = new C45Learning(decisionTree);
+            c45Learning.Run(inputs, outputs); // System.AggregateException thrown here
+
+            Assert.AreEqual(decisionTree.Decide(new[] { 0 }), 0);
+        }
+
+        [Test]
+        public void same_input_different_output()
+        {
+            double[][] inputs = new double[][] {
+                new double[] { 1 },
+                new double[] { 0 },
+                new double[] { 2 },
+                new double[] { 3 },
+                new double[] { 0 },
+            };
+
+            int[] outputs = new int[] {
+                11,
+                00,
+                22,
+                33,
+                01
+            };
+
+
+            DecisionVariable[] variables = { new DecisionVariable("x", DecisionVariableKind.Continuous) };
+
+            DecisionTree decisionTree = new DecisionTree(variables, 34);
+            C45Learning c45Learning = new C45Learning(decisionTree)
+            {
+                Join = 10,
+                MaxHeight = 10
+            };
+            c45Learning.Run(inputs, outputs); // System.AggregateException thrown here
+
+            int[] actual = decisionTree.Decide(inputs);
+
+            Assert.AreEqual(11, actual[0]);
+            Assert.AreEqual(00, actual[1]);
+            Assert.AreEqual(22, actual[2]);
+            Assert.AreEqual(33, actual[3]);
+            Assert.AreEqual(00, actual[4]);
         }
     }
 }

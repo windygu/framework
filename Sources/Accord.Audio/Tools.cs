@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -141,11 +141,11 @@ namespace Accord.Audio
         public static double[] GetFrequencyVector(int length, int sampleRate)
         {
             int numUniquePts = (int)System.Math.Ceiling((length + 1) / 2.0);
+
             double[] freq = new double[numUniquePts];
             for (int i = 0; i < numUniquePts; i++)
-            {
-                freq[i] = (double)i * sampleRate / length;
-            }
+                freq[i] = i * sampleRate / (double)length;
+
             return freq;
         }
 
@@ -155,7 +155,7 @@ namespace Accord.Audio
         /// 
         public static double GetSpectralResolution(int samplingRate, int samples)
         {
-            return samplingRate / samples;
+            return samplingRate / (double)samples;
         }
 
         /// <summary>

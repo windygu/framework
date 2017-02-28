@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 // Copyright (c) 2011-2012 LTS2, EPFL
@@ -35,7 +35,7 @@
 namespace Accord.Imaging
 {
     using Accord.Math;
-    using AForge.Imaging;
+    using Accord.Imaging;
     using System;
     using System.Collections.Generic;
 
@@ -66,7 +66,7 @@ namespace Accord.Imaging
     /// <seealso cref="FastRetinaKeypoint"/>
     /// <seealso cref="FastRetinaKeypointDetector"/>
     ///
-    public class FastRetinaKeypointDescriptor
+    public class FastRetinaKeypointDescriptor : ICloneable
     {
         private FastRetinaKeypointPattern pattern;
 
@@ -300,7 +300,7 @@ namespace Accord.Imaging
 
             // get point position in image
             var freak = pattern.lookupTable[
-                scale * CV_FREAK_NB_ORIENTATION * CV_FREAK_NB_POINTS 
+                scale * CV_FREAK_NB_ORIENTATION * CV_FREAK_NB_POINTS
                 + orientation * CV_FREAK_NB_POINTS + pointIndex];
 
             double xf = freak.x + kx;
@@ -324,12 +324,16 @@ namespace Accord.Imaging
                 byte* ptr = (byte*)Image.ImageData.ToPointer() + x + y * imagecols;
 
                 // linear interpolation:
+                Image.CheckBounds(ptr);
                 ret_val = (r_x_1 * r_y_1 * (int)(*ptr));
                 ptr++;
+                Image.CheckBounds(ptr);
                 ret_val += (r_x * r_y_1 * (int)(*ptr));
                 ptr += imagecols;
+                Image.CheckBounds(ptr);
                 ret_val += (r_x * r_y * (int)(*ptr));
                 ptr--;
+                Image.CheckBounds(ptr);
                 ret_val += (r_x_1 * r_y * (int)(*ptr));
                 return ((ret_val + 512) / 1024);
             }
@@ -348,6 +352,29 @@ namespace Accord.Imaging
             ret_val = ret_val / ((x_right - x_left) * (y_bottom - y_top));
             return ret_val;
         }
-       
+
+        private FastRetinaKeypointDescriptor()
+        {
+        }
+
+        /// <summary>
+        ///   Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// 
+        /// <returns>
+        ///   A new object that is a copy of this instance.
+        /// </returns>
+        /// 
+        public object Clone()
+        {
+            var clone = new FastRetinaKeypointDescriptor();
+            clone.Extended = Extended;
+            clone.Image = Image.Clone();
+            clone.Integral = (IntegralImage)Integral.Clone();
+            clone.IsOrientationNormal = IsOrientationNormal;
+            clone.IsScaleNormal = IsScaleNormal;
+            clone.pattern = (FastRetinaKeypointPattern)pattern.Clone();
+            return clone;
+        }
     }
 }

@@ -2,7 +2,7 @@
 // AForge.NET framework
 // http://www.aforgenet.com/framework/
 //
-// Copyright © AForge.NET, 2006-2011
+// Copyright Â© AForge.NET, 2006-2011
 // contacts@aforgenet.com
 //
 
@@ -14,10 +14,11 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Data;
 
-using AForge;
-using AForge.Imaging;
-using AForge.Imaging.Filters;
-using AForge.Imaging.Textures;
+using Accord;
+using Accord.Imaging;
+using Accord.Imaging.Filters;
+using Accord.Imaging.Textures;
+using System.IO;
 
 namespace SampleApp
 {
@@ -74,6 +75,7 @@ namespace SampleApp
         private IContainer components;
 
         private System.Drawing.Bitmap sourceImage;
+        private MenuItem menuItem9;
         private System.Drawing.Bitmap filteredImage;
 
 
@@ -83,6 +85,8 @@ namespace SampleApp
 
             // set default size mode of picture box
             pictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
+
+            openFileDialog.InitialDirectory = Path.Combine(Application.StartupPath, "Resources");
         }
 
         /// <summary>
@@ -108,6 +112,7 @@ namespace SampleApp
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.mainMenu = new System.Windows.Forms.MainMenu(this.components);
             this.fileItem = new System.Windows.Forms.MenuItem();
             this.openFileItem = new System.Windows.Forms.MenuItem();
@@ -147,6 +152,7 @@ namespace SampleApp
             this.jitterFiltersItem = new System.Windows.Forms.MenuItem();
             this.oilFiltersItem = new System.Windows.Forms.MenuItem();
             this.textureFiltersItem = new System.Windows.Forms.MenuItem();
+            this.menuItem9 = new System.Windows.Forms.MenuItem();
             this.sizeItem = new System.Windows.Forms.MenuItem();
             this.normalSizeItem = new System.Windows.Forms.MenuItem();
             this.stretchedSizeItem = new System.Windows.Forms.MenuItem();
@@ -227,7 +233,8 @@ namespace SampleApp
             this.menuItem8,
             this.jitterFiltersItem,
             this.oilFiltersItem,
-            this.textureFiltersItem});
+            this.textureFiltersItem,
+            this.menuItem9});
             this.filtersItem.Text = "Fi&lters";
             // 
             // noneFiltersItem
@@ -421,6 +428,12 @@ namespace SampleApp
             this.textureFiltersItem.Text = "Texture";
             this.textureFiltersItem.Click += new System.EventHandler(this.textureFiltersItem_Click);
             // 
+            // menuItem9
+            // 
+            this.menuItem9.Index = 33;
+            this.menuItem9.Text = "FastGuidedFilter";
+            this.menuItem9.Click += new System.EventHandler(this.fastGuidedFilterFiltersItem_Click);
+            // 
             // sizeItem
             // 
             this.sizeItem.Index = 2;
@@ -462,9 +475,9 @@ namespace SampleApp
             | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.pictureBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pictureBox.Location = new System.Drawing.Point(10, 7);
+            this.pictureBox.Location = new System.Drawing.Point(10, 8);
             this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(785, 529);
+            this.pictureBox.Size = new System.Drawing.Size(785, 528);
             this.pictureBox.TabIndex = 0;
             this.pictureBox.TabStop = false;
             // 
@@ -474,8 +487,9 @@ namespace SampleApp
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.ClientSize = new System.Drawing.Size(804, 543);
             this.Controls.Add(this.pictureBox);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Menu = this.mainMenu;
-            this.MinimumSize = new System.Drawing.Size(512, 351);
+            this.MinimumSize = new System.Drawing.Size(510, 342);
             this.Name = "MainForm";
             this.Text = "Image Processing filters demo";
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
@@ -524,7 +538,7 @@ namespace SampleApp
                         // make sure the image has 24 bpp format
                         if (sourceImage.PixelFormat != PixelFormat.Format24bppRgb)
                         {
-                            Bitmap temp = AForge.Imaging.Image.Clone(sourceImage, PixelFormat.Format24bppRgb);
+                            Bitmap temp = Accord.Imaging.Image.Clone(sourceImage, PixelFormat.Format24bppRgb);
                             sourceImage.Dispose();
                             sourceImage = temp;
                         }
@@ -747,11 +761,11 @@ namespace SampleApp
         private void convolutionFiltersItem_Click(object sender, System.EventArgs e)
         {
             ApplyFilter(new Convolution(new int[,] {
-								{ 1, 2, 3, 2, 1 },
-								{ 2, 4, 5, 4, 2 },
-								{ 3, 5, 6, 5, 3 },
-								{ 2, 4, 5, 4, 2 },
-								{ 1, 2, 3, 2, 1 } }));
+                                { 1, 2, 3, 2, 1 },
+                                { 2, 4, 5, 4, 2 },
+                                { 3, 5, 6, 5, 3 },
+                                { 2, 4, 5, 4, 2 },
+                                { 1, 2, 3, 2, 1 } }));
             convolutionFiltersItem.Checked = true;
         }
 
@@ -849,6 +863,35 @@ namespace SampleApp
         {
             ApplyFilter(new Texturer(new TextileTexture(), 1.0, 0.8));
             textureFiltersItem.Checked = true;
+        }
+
+        // On Filters->Texture
+        private void fastGuidedFilterFiltersItem_Click(object sender, EventArgs e)
+        {
+            ClearCurrentImage();
+
+            // Spreading pixels values from 0 to 65535 instead of byte values for less loosing data when applying the filter.
+            // Of course, we could use the source image in 8-bit (easiest and fastest way but slightly losing data).
+            using (var bmp = Accord.Imaging.Image.Convert8bppTo16bpp(sourceImage))
+            {
+                var fastGuidedFilter = new FastGuidedFilter
+                {
+                    KernelSize = 8,
+                    Epsilon = 0.02f,
+                    SubSamplingRatio = 0.25f,
+                    OverlayImage = (Bitmap)bmp.Clone()
+                };
+
+                // apply filter
+                fastGuidedFilter.ApplyInPlace(bmp);
+                fastGuidedFilter.OverlayImage.Dispose();
+
+                if (pictureBox.Image != null)
+                    pictureBox.Image.Dispose();
+
+                // display filtered image
+                pictureBox.Image = Accord.Imaging.Image.Convert16bppTo8bpp(bmp);
+            }
         }
     }
 }

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@ namespace Accord.Math.Integration
 {
     using System;
     using AForge;
+    using Accord.Math.Random;
 
     /// <summary>
     ///   Monte Carlo method for multi-dimensional integration.
@@ -168,7 +169,7 @@ namespace Accord.Math.Integration
 
             this.NumberOfParameters = parameters;
             this.Range = new DoubleRange[parameters];
-            this.Random = new Random(Accord.Math.Tools.Random.Next());
+            this.Random = new Random(Generator.Random.Next());
 
             for (int i = 0; i < Range.Length; i++)
                 Range[i].Max = 1;
@@ -207,7 +208,6 @@ namespace Accord.Math.Integration
 
             for (int j = 0; j < Iterations; j++)
             {
-
                 for (int i = 0; i < sample.Length; i++)
                     sample[i] = Random.NextDouble() * Range[i].Length + Range[i].Min;
 
@@ -287,7 +287,7 @@ namespace Accord.Math.Integration
             int count = 0;
             double sum = 0;
 
-            var random = new Random(Accord.Math.Tools.Random.Next());
+            var random = new Random(Generator.Random.Next());
 
             for (count = 0; count < samples; count++)
             {

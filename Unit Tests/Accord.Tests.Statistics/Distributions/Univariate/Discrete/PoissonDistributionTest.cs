@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -26,26 +26,11 @@ namespace Accord.Tests.Statistics
     using NUnit.Framework;
     using Accord.Statistics.Distributions;
     using System.Globalization;
+    using Accord.Math;
 
     [TestFixture]
     public class PoissonDistributionTest
     {
-
-
-        private TestContext testContextInstance;
-
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
-
 
         [Test]
         public void ConstructorTest()
@@ -143,11 +128,45 @@ namespace Accord.Tests.Statistics
             // P(X ≥ 1) = 0.985004423179522
             double greaterThanOrEqual = dist.ComplementaryDistributionFunction(k: 1, inclusive: true);
 
+            double inv1 = dist.InverseDistributionFunction(less);
+            double inv2 = dist.InverseDistributionFunction(lessThanOrEqual);
+
             Assert.AreEqual(equal, 0.0629814226460064, 1e-10);
             Assert.AreEqual(less, 0.0149955768204777, 1e-10);
             Assert.AreEqual(lessThanOrEqual, 0.0779769994664841, 1e-10);
             Assert.AreEqual(greater, 0.922023000533516, 1e-10);
             Assert.AreEqual(greaterThanOrEqual, 0.985004423179522, 1e-10);
+
+            Assert.AreEqual(inv1, 1, 1e-10);
+            Assert.AreEqual(inv2, 1, 1e-10);
+        }
+
+        [Test]
+        public void InverseDistributionFunctionTest()
+        {
+            // Create a new Poisson distribution
+            var dist = new PoissonDistribution(lambda: 2);
+
+            double equal = dist.ProbabilityMassFunction(k: 7);
+
+            double lte1 = dist.DistributionFunction(k: 7);
+            double lte2 = dist.DistributionFunction(k: 7, inclusive: true);
+            double less = dist.DistributionFunction(k: 7, inclusive: false);
+
+            double inv0 = dist.InverseDistributionFunction(0.99890328103214132);
+            double inv1 = dist.InverseDistributionFunction(lte1);
+            double inv2 = dist.InverseDistributionFunction(lte2);
+            double inv3 = dist.InverseDistributionFunction(less);
+
+            Assert.AreEqual(equal, 0.0034370865583901638, 1e-10);
+            Assert.AreEqual(less, 0.99546619447375118, 1e-10);
+            Assert.AreEqual(lte1, 0.99890328103214132, 1e-10);
+            Assert.AreEqual(lte2, 0.99890328103214132, 1e-10);
+
+            Assert.AreEqual(inv0, 7, 1e-10);
+            Assert.AreEqual(inv1, 7, 1e-10);
+            Assert.AreEqual(inv2, 7, 1e-10);
+            Assert.AreEqual(inv3, 6, 1e-10);
         }
 
         [Test]
@@ -262,8 +281,7 @@ namespace Accord.Tests.Statistics
             double lambda = 1.11022302462516E-16;
             var target = new PoissonDistribution(lambda) as ISampleableDistribution<double>;
 
-            double[] values = target.Generate(10000);
-
+            double[] values = target.Generate(samples: 10000);
             for (int i = 0; i < values.Length; i++)
                 Assert.AreEqual(0, values[i]);
         }
@@ -282,5 +300,23 @@ namespace Accord.Tests.Statistics
                 Assert.AreEqual(0, values[i]);
         }
 
+
+        [Test]
+        public void GenerateTest3()
+        {
+            double lambda = 0.75;
+            var a = new PoissonDistribution(lambda) as ISampleableDistribution<double>;
+
+
+            Accord.Math.Random.Generator.Seed = 0;
+            double[] expected = a.Generate(samples: 10000);
+
+            Accord.Math.Random.Generator.Seed = 0;
+            var b = new PoissonDistribution(lambda);
+            Accord.Math.Random.Generator.Seed = 0;
+            int[] actual = b.Generate(10000);
+
+            Assert.IsTrue(expected.IsEqual(actual));
+        }
     }
 }

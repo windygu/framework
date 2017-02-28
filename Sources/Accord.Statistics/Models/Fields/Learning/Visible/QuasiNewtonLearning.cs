@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -19,25 +19,42 @@
 //    License along with this library; if not, write to the Free Software
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
+#pragma warning disable 612, 618
 
 namespace Accord.Statistics.Models.Fields.Learning
 {
+    using Accord.MachineLearning;
     using Accord.Math.Optimization;
     using Accord.Statistics.Models.Fields.Features;
     using Accord.Statistics.Models.Fields.Functions;
     using System;
+using System.Threading;
 
     /// <summary>
     ///   Quasi-Newton (L-BFGS) learning algorithm for <see cref="ConditionalRandomField{T}">
     ///   Conditional Hidden Fields</see>.
     /// </summary>
     /// 
-    public class QuasiNewtonLearning<T> : IConditionalRandomFieldLearning<T>
+    public class QuasiNewtonLearning<T> : 
+        ISupervisedLearning<ConditionalRandomField<T>, T[], int[]>,
+        IConditionalRandomFieldLearning<T>
     {
+        [NonSerialized]
+        CancellationToken token = new CancellationToken();
 
         private BoundedBroydenFletcherGoldfarbShanno lbfgs;
         private ConditionalRandomField<T> model;
 
+        /// <summary>
+        /// Gets or sets a cancellation token that can be used to
+        /// stop the learning algorithm while it is running.
+        /// </summary>
+        /// 
+        public CancellationToken Token
+        {
+            get { return token; }
+            set { token = value; }
+        }
 
         /// <summary>
         ///   Constructs a new L-BFGS learning algorithm.
@@ -64,7 +81,13 @@ namespace Accord.Statistics.Models.Fields.Learning
         /// <param name="observations">The training observations.</param>
         /// <param name="labels">The observation's labels.</param>
         /// 
+        [Obsolete("Please use Learn(x, y) instead.")]
         public double Run(T[][] observations, int[][] labels)
+        {
+            return run(observations, labels);
+        }
+
+        private double run(T[][] observations, int[][] labels)
         {
             double f;
             double[] g;
@@ -83,6 +106,7 @@ namespace Accord.Statistics.Models.Fields.Learning
                 return g;
             };
 
+            lbfgs.Token = Token;
 
             if (lbfgs.Minimize(model.Function.Weights))
                 model.Function.Weights = lbfgs.Solution;
@@ -202,5 +226,19 @@ namespace Accord.Statistics.Models.Fields.Learning
             return z;
         }
 
+        /// <summary>
+        /// Learns a model that can map the given inputs to the given outputs.
+        /// </summary>
+        /// <param name="x">The model inputs.</param>
+        /// <param name="y">The desired outputs associated with each <paramref name="x">inputs</paramref>.</param>
+        /// <param name="weights">The weight of importance for each input-output pair.</param>
+        /// <returns>
+        /// A model that has learned how to produce <paramref name="y" /> given <paramref name="x" />.
+        /// </returns>
+        public ConditionalRandomField<T> Learn(T[][] x, int[][] y, double[] weights = null)
+        {
+            run(x, y);
+            return model;
+        }
     }
 }

@@ -2,7 +2,7 @@
 // The Accord.NET Framework
 // http://accord-framework.net
 //
-// Copyright © César Souza, 2009-2015
+// Copyright © César Souza, 2009-2017
 // cesarsouza at gmail.com
 //
 //    This library is free software; you can redistribute it and/or
@@ -29,79 +29,103 @@ namespace Accord.MachineLearning.VectorMachines.Learning
     using Accord.Statistics.Kernels;
     using System.Threading;
     using System.Diagnostics;
+    using Accord.Math.Optimization.Losses;
+    using System.Collections;
 
     /// <summary>
     ///   Base class for <see cref="SupportVectorMachine"/> regression learning algorithms.
     /// </summary>
     /// 
-    public abstract class BaseSupportVectorRegression
+    public abstract class BaseSupportVectorRegression<TModel, TKernel, TInput> :
+        ISupervisedLearning<TModel, TInput, double>
+        where TKernel : IKernel<TInput>
+        where TModel : SupportVectorMachine<TKernel, TInput>, ISupportVectorMachine<TInput>
+        where TInput : ICloneable
     {
+        [NonSerialized]
+        CancellationToken token = new CancellationToken();
+
+        /// <summary>
+        /// Gets or sets a cancellation token that can be used to
+        /// stop the learning algorithm while it is running.
+        /// </summary>
+        public CancellationToken Token
+        {
+            get { return token; }
+            set { token = value; }
+        }
+
         // Training data
-        private double[][] inputs;
+        private TInput[] inputs;
         private double[] outputs;
 
         private double[] sampleWeights;
 
-        private bool useComplexityHeuristic;
+        private bool useKernelEstimation = false;
+        private bool useComplexityHeuristic = true;
 
         private double complexity = 1;
         private double rho = 1e-3;
 
         // Support Vector Machine parameters
-        private SupportVectorMachine machine;
-        private IKernel kernel;
-
+        private TKernel kernel;
         private bool isLinear;
+
+        // TODO: Remove this field after a few releases. It exists
+        // only to provide compatibility with previous releases of
+        // the framework.
+        private ISupportVectorMachine<TInput> machine;
 
 
         /// <summary>
-        ///   Initializes a new instance of the <see cref="BaseSupportVectorRegression"/> class.
+        ///   Gets or sets the cost values associated with each input vector.
         /// </summary>
         /// 
-        /// <param name="machine">The machine to be learned.</param>
-        /// <param name="inputs">The input data.</param>
-        /// <param name="outputs">The corresponding output data.</param>
-        /// 
-        protected BaseSupportVectorRegression(SupportVectorMachine machine, double[][] inputs, double[] outputs)
+        protected double[] C { get; set; }
+
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseSupportVectorRegression{TModel, TKernel, TInput}"/> class.
+        /// </summary>
+        public BaseSupportVectorRegression()
         {
-            // Initial argument checking
-            SupportVectorLearningHelper.CheckArgs(machine, inputs, outputs);
 
-            // Machine
-            this.machine = machine;
+        }
 
-            // Kernel (if applicable)
-            KernelSupportVectorMachine ksvm = machine as KernelSupportVectorMachine;
-
-            if (ksvm == null)
-            {
-                isLinear = true;
-                Linear linear = new Linear(0);
-                kernel = linear;
-            }
-            else
-            {
-                Linear linear = ksvm.Kernel as Linear;
-                isLinear = linear != null && linear.Constant == 0;
-                kernel = ksvm.Kernel;
-            }
-
-            // Learning data
-            this.inputs = inputs;
-            this.outputs = outputs;
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        protected BaseSupportVectorRegression(ISupportVectorMachine<TInput> model, TInput[] input, double[] output)
+        {
+            this.machine = model;
+            this.inputs = input;
+            this.outputs = output;
+            this.Kernel = (TKernel)model.Kernel;
         }
 
         /// <summary>
         ///   Complexity (cost) parameter C. Increasing the value of C forces the creation
-        ///   of a more accurate model that may not generalize well. Default value is 1.
+        ///   of a more accurate model that may not generalize well. If this value is not
+        ///   set and <see cref="UseComplexityHeuristic"/> is set to <c>true</c>, the framework
+        ///   will automatically guess a value for <c>C</c>. If this value is manually set to 
+        ///   something else, then <see cref="UseComplexityHeuristic"/> will be automatically 
+        ///   disabled and the given value will be used instead.
         /// </summary>
         /// 
         /// <remarks>
+        /// <para>
         ///   The cost parameter C controls the trade off between allowing training
         ///   errors and forcing rigid margins. It creates a soft margin that permits
         ///   some misclassifications. Increasing the value of C increases the cost of
         ///   misclassifying points and forces the creation of a more accurate model
-        ///   that may not generalize well.
+        ///   that may not generalize well.</para>
+        ///   
+        /// <para>
+        ///   If this value is not set and <see cref="UseComplexityHeuristic"/> is set to 
+        ///   <c>true</c>, the framework will automatically guess a suitable value for C by
+        ///   calling <see cref="Accord.Statistics.Kernels.Kernel.EstimateComplexity{TKernel, TInput}(TKernel, TInput[])"/>.  If this value 
+        ///   is manually set to something else, then the class will respect the new value 
+        ///   and automatically disable <see cref="UseComplexityHeuristic"/>. </para>
         /// </remarks>
         /// 
         public double Complexity
@@ -111,7 +135,9 @@ namespace Accord.MachineLearning.VectorMachines.Learning
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException("value");
+
                 this.complexity = value;
+                this.useComplexityHeuristic = false;
             }
         }
 
@@ -161,6 +187,17 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         }
 
         /// <summary>
+        ///   Gets or sets whether initial values for some kernel parameters
+        ///   should be estimated from the data, if possible. Default is true.
+        /// </summary>
+        /// 
+        public bool UseKernelEstimation
+        {
+            get { return useKernelEstimation; }
+            set { useKernelEstimation = value; }
+        }
+
+        /// <summary>
         ///   Gets whether the machine to be learned
         ///   has a <see cref="Linear"/> kernel.
         /// </summary>
@@ -172,140 +209,155 @@ namespace Accord.MachineLearning.VectorMachines.Learning
         }
 
         /// <summary>
-        ///   Gets the machine's <see cref="IKernel"/> function.
+        ///   Gets or sets the kernel function use to create a 
+        ///   kernel Support Vector Machine. If this property
+        ///   is set, <see cref="UseKernelEstimation"/> will be
+        ///   set to false.
         /// </summary>
         /// 
-        protected IKernel Kernel
+        public TKernel Kernel
         {
             get { return kernel; }
+            set
+            {
+                this.kernel = value;
+                this.useKernelEstimation = false;
+            }
         }
 
         /// <summary>
-        ///   Gets the training input data set.
+        ///   Gets or sets the input vectors for training.
         /// </summary>
         /// 
-        public double[][] Inputs { get { return inputs; } }
+        protected TInput[] Inputs { get { return inputs; } }
 
         /// <summary>
-        ///   Gets the training output labels set.
+        ///   Gets or sets the output values for each calibration vector.
         /// </summary>
-        /// 
-        public double[] Outputs { get { return outputs; } }
+        protected double[] Outputs { get { return outputs; } }
 
         /// <summary>
         ///   Gets the machine to be taught.
         /// </summary>
         /// 
-        public SupportVectorMachine Machine { get { return machine; } }
+        public TModel Model { get; set; }
+
+        /// <summary>
+        ///   Creates an instance of the model to be learned. Inheritors
+        ///   of this abstract class must define this method so new models
+        ///   can be created from the training data.
+        /// </summary>
+        /// 
+        protected abstract TModel Create(int inputs, TKernel kernel);
+
+        //protected virtual TModel Create(int inputs, TKernel kernel)
+        //{
+        //    return SupportVectorLearningHelper.Create<TModel, TInput, TKernel>(inputs, kernel);
+        //}
+
+        /// <summary>
+        /// Learns a model that can map the given inputs to the given outputs.
+        /// </summary>
+        /// <param name="x">The model inputs.</param>
+        /// <param name="y">The desired outputs associated with each <paramref name="x">inputs</paramref>.</param>
+        /// <param name="weights">The weight of importance for each input-output pair.</param>
+        /// <returns>
+        /// A model that has learned how to produce <paramref name="y" /> given <paramref name="x" />.
+        /// </returns>
+        public TModel Learn(TInput[] x, double[] y, double[] weights = null)
+        {
+            bool initialized = false;
+
+            SupportVectorLearningHelper.CheckArgs(x, y);
+
+            if (kernel == null)
+            {
+                kernel = SupportVectorLearningHelper.CreateKernel<TKernel, TInput>(x);
+                initialized = true;
+            }
+
+            if (!initialized && useKernelEstimation)
+                kernel = SupportVectorLearningHelper.EstimateKernel(kernel, x);
+
+            if (Model == null)
+                Model = Create(SupportVectorLearningHelper.GetNumberOfInputs(kernel, x), kernel);
+
+            Model.Kernel = kernel;
+
+            // Initial argument checking
+            SupportVectorLearningHelper.CheckArgs(Model, x, y);
+
+            // Learning data
+            this.inputs = x;
+            this.outputs = y;
+
+            try
+            {
+                // Initialization heuristics
+                if (useComplexityHeuristic)
+                    complexity = kernel.EstimateComplexity(inputs);
+
+                C = new double[inputs.Length];
+                for (int i = 0; i < outputs.Length; i++)
+                    C[i] = complexity;
+
+                if (sampleWeights != null)
+                {
+                    for (int i = 0; i < C.Length; i++)
+                        C[i] *= sampleWeights[i];
+                }
+
+
+                InnerRun();
+
+                SupportVectorLearningHelper.CheckOutput(Model);
+
+                return Model;
+            }
+            finally
+            {
+                if (machine != null)
+                {
+                    // TODO: This block is only necessary to offer compatibility
+                    // to code written using previous versions of the framework,
+                    // and should be removed after a few releases.
+                    machine.SupportVectors = Model.SupportVectors;
+                    machine.Weights = Model.Weights;
+                    machine.Threshold = Model.Threshold;
+                    machine.Kernel = Model.Kernel;
+                    machine.IsProbabilistic = Model.IsProbabilistic;
+                }
+            }
+        }
+
+
 
         /// <summary>
         ///   Runs the learning algorithm.
         /// </summary>
         /// 
-        /// <returns>
-        ///   The misclassification error rate of
-        ///   the resulting support vector machine.
-        /// </returns>
+        protected abstract void InnerRun();
+
+
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
         /// 
+        [Obsolete("Please use Accord.Math.Optimization.SquareLoss or any other losses of your choice from the Accord.Math.Optimization namespace.")]
+        public double ComputeError(TInput[] inputs, double[] expectedOutputs)
+        {
+            return new SquareLoss(expectedOutputs).Loss(machine.Score(inputs));
+        }
+
+        /// <summary>
+        ///   Obsolete.
+        /// </summary>
+        /// 
+        [Obsolete("Please use Learn() instead.")]
         public double Run()
         {
-            return Run(true, CancellationToken.None);
+            Learn(Inputs, Outputs);
+            return new SquareLoss(Outputs).Loss(machine.Score(Inputs));
         }
-
-        /// <summary>
-        ///   Runs the learning algorithm.
-        /// </summary>
-        /// 
-        /// <param name="computeError">
-        ///   True to compute error after the training
-        ///   process completes, false otherwise. Default is true.
-        /// </param>
-        /// 
-        /// <returns>
-        ///   The misclassification error rate of
-        ///   the resulting support vector machine.
-        /// </returns>
-        /// 
-        public double Run(bool computeError)
-        {
-            return Run(computeError, CancellationToken.None);
-        }
-
-        /// <summary>
-        ///   Runs the learning algorithm.
-        /// </summary>
-        /// 
-        /// <param name="computeError">
-        ///   True to compute error after the training
-        ///   process completes, false otherwise. Default is true.
-        /// </param>
-        /// <param name="token">
-        ///   A <see cref="CancellationToken"/> which can be used
-        ///   to request the cancellation of the learning algorithm
-        ///   when it is being run in another thread.
-        /// </param>
-        /// 
-        /// <returns>
-        ///   The misclassification error rate of
-        ///   the resulting support vector machine.
-        /// </returns>
-        /// 
-        public double Run(bool computeError, CancellationToken token)
-        {
-            // Initialization heuristics
-            if (useComplexityHeuristic)
-                complexity = BaseSupportVectorLearning.EstimateComplexity(kernel, inputs);
-
-            double[] c = new double[inputs.Length];
-            for (int i = 0; i < outputs.Length; i++)
-                c[i] = complexity;
-
-            if (sampleWeights != null)
-            {
-                for (int i = 0; i < c.Length; i++)
-                    c[i] *= sampleWeights[i];
-            }
-
-            Run(token, c);
-
-            // Compute error if required.
-            return (computeError) ? ComputeError(inputs, outputs) : 0.0;
-        }
-
-        /// <summary>
-        ///   Runs the learning algorithm.
-        /// </summary>
-        /// 
-        /// <param name="token">A token to stop processing when requested.</param>
-        /// <param name="c">The complexity for each sample.</param>
-        /// 
-        protected abstract void Run(CancellationToken token, double[] c);
-
-
-        /// <summary>
-        ///   Computes the summed square error for a given set of input and outputs.
-        /// </summary>
-        /// 
-        public double ComputeError(double[][] inputs, double[] expectedOutputs)
-        {
-            // Compute errors
-            double error = 0;
-            for (int i = 0; i < inputs.Length; i++)
-            {
-                double output;
-                double actual = machine.Compute(inputs[i], out output);
-                double expected = expectedOutputs[i];
-
-                if (Double.IsNaN(actual))
-                    Trace.WriteLine("SVM has produced NaNs");
-
-                double e = (actual - expected);
-                error += e * e;
-            }
-
-            // error sum of squares
-            return error;
-        }
-
     }
 }
